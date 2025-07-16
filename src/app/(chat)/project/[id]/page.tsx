@@ -118,10 +118,7 @@ export default function ProjectPage() {
     sendExtraMessageFields: true,
     generateId: generateUUID,
     experimental_throttle: 100,
-    onFinish: (message, { finishReason, usage }) => {
-      // Use the threadId that we know was successfully created
-      console.log("onFinish - navigating to thread:", threadId);
-
+    onFinish: () => {
       mutate("threads").then(() => {
         router.push(`/chat/${threadId}`);
       });

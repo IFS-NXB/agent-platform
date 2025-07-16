@@ -1,10 +1,10 @@
 import { convertToCoreMessages, smoothStream, streamText } from "ai";
-import { selectThreadWithMessagesAction } from "../actions";
 import { customModelProvider } from "lib/ai/models";
 import { SUMMARIZE_PROMPT } from "lib/ai/prompts";
-import logger from "logger";
-import { ChatModel } from "app-types/chat";
+import logger from "lib/logger";
 import { redirect, RedirectType } from "next/navigation";
+import { ChatModel } from "../../../../types/chat";
+import { selectThreadWithMessagesAction } from "../actions";
 
 export async function POST(request: Request) {
   try {
@@ -22,8 +22,8 @@ export async function POST(request: Request) {
       thread.messages
         .map((v) => ({
           content: "",
-          role: v.role,
-          parts: v.parts,
+          role: v.role as "user" | "system" | "assistant",
+          parts: v.parts as any,
         }))
         .concat({
           content: "",

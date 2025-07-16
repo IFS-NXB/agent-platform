@@ -1,14 +1,15 @@
 import type {
   MCPServerConfig,
-  McpServerInsert,
-  McpServerSelect,
   VercelAIMcpTool,
 } from "app-types/mcp";
-import { createMCPClient, type MCPClient } from "./create-mcp-client";
 import { Locker } from "lib/utils";
 import { safe } from "ts-safe";
-import { McpServerSchema } from "lib/db/pg/schema.pg";
+import { Tables, TablesInsert } from '../../../../supabase/types';
+import { createMCPClient, type MCPClient } from "./create-mcp-client";
 import { createMCPToolId } from "./mcp-tool-id";
+
+type McpServerInsert = TablesInsert<"mcp_servers">;
+type McpServerSelect = Tables<"mcp_servers">;
 /**
  * Interface for storage of MCP server configurations.
  * Implementations should handle persistent storage of server configs.
@@ -21,7 +22,12 @@ import { createMCPToolId } from "./mcp-tool-id";
 export interface MCPConfigStorage {
   init(manager: MCPClientsManager): Promise<void>;
   loadAll(): Promise<McpServerSelect[]>;
-  save(server: McpServerInsert): Promise<McpServerSelect>;
+  save(server: {
+    id?: string;
+    name: string;
+    config: any;
+    enabled?: boolean | null;
+  }): Promise<McpServerSelect>;
   delete(id: string): Promise<void>;
   has(id: string): Promise<boolean>;
   get(id: string): Promise<McpServerSelect | null>;
@@ -55,7 +61,7 @@ export class MCPClientsManager {
           const configs = await this.storage.loadAll();
           await Promise.all(
             configs.map(({ id, name, config }) =>
-              this.addClient(id, name, config),
+              this.addClient(id, name, config as MCPServerConfig),
             ),
           );
         }
@@ -103,13 +109,13 @@ export class MCPClientsManager {
   /**
    * Persists a new client configuration to storage and adds the client instance to memory
    */
-  async persistClient(server: typeof McpServerSchema.$inferInsert) {
+  async persistClient(server: McpServerInsert) {
     let id = server.name;
     if (this.storage) {
       const entity = await this.storage.save(server);
       id = entity.id;
     }
-    return this.addClient(id, server.name, server.config);
+    return this.addClient(id, server.name, server.config as MCPServerConfig);
   }
 
   /**
@@ -142,7 +148,7 @@ export class MCPClientsManager {
       if (!server) {
         throw new Error(`Client ${id} not found`);
       }
-      return this.addClient(id, server.name, server.config);
+      return this.addClient(id, server.name, server.config as MCPServerConfig);
     }
     return this.addClient(id, prevClient.name, currentConfig);
   }

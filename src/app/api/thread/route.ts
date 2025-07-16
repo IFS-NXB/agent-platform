@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { generateTitleFromUserMessageAction } from "../chat/actions";
 
 export async function POST(request: Request) {
-  const { id, projectId, message, model } = await request.json();
+  const {  projectId, message, model } = await request.json();
 
   const session = await getSession();
 

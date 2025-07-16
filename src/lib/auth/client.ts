@@ -11,7 +11,7 @@ export const useAuthClient = () => {
     try {
       await signOut();
       toast.success("Signed out successfully");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Error signing out");
     }
   };

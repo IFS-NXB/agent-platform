@@ -31,12 +31,41 @@ import { workflowRepository } from "lib/supabase/repositories";
 import { safe } from "ts-safe";
 
 import {
+  DBEdge,
+  DBNode,
   VercelAIWorkflowTool,
   VercelAIWorkflowToolStreaming,
   VercelAIWorkflowToolStreamingResult,
+  WorkflowIcon,
 } from "app-types/workflow";
 import { createWorkflowExecutor } from "lib/ai/workflow/executor/workflow-executor";
 import { NodeKind } from "lib/ai/workflow/workflow.interface";
+
+// Helper to convert snake_case DB fields to camelCase
+function toCamelCaseNode(dbNode: any): DBNode {
+  return {
+    id: dbNode.id,
+    workflowId: dbNode.workflow_id,
+    kind: dbNode.kind,
+    name: dbNode.name,
+    description: dbNode.description,
+    nodeConfig: dbNode.node_config,
+    uiConfig: dbNode.ui_config,
+    createdAt: dbNode.created_at,
+    updatedAt: dbNode.updated_at,
+  };
+}
+
+function toCamelCaseEdge(dbEdge: any): DBEdge {
+  return {
+    id: dbEdge.id,
+    workflowId: dbEdge.workflow_id,
+    source: dbEdge.source,
+    target: dbEdge.target,
+    uiConfig: dbEdge.ui_config,
+    createdAt: dbEdge.created_at,
+  };
+}
 
 export function filterMCPToolsByMentions(
   tools: Record<string, VercelAIMcpTool>,
@@ -303,10 +332,10 @@ export const workflowToVercelAITool = ({
         .map((workflow) => {
           if (!workflow) throw new Error("Not Found Workflow");
           const executor = createWorkflowExecutor({
-            nodes: workflow.nodes,
-            edges: workflow.edges,
+            nodes: workflow.nodes.map(toCamelCaseNode),
+            edges: workflow.edges.map(toCamelCaseEdge),
           });
-          toolResult.workflowIcon = workflow.icon;
+          toolResult.workflowIcon = workflow.icon as WorkflowIcon | undefined;
 
           abortSignal?.addEventListener("abort", () => executor.exit());
           executor.subscribe((e) => {

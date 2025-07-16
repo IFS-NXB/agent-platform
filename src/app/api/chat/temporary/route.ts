@@ -1,3 +1,4 @@
+import { clerkClient } from '@clerk/nextjs/server';
 import { Message, smoothStream, streamText } from "ai";
 import { getSession } from "auth/server";
 import { customModelProvider } from "lib/ai/models";
@@ -28,9 +29,12 @@ export async function POST(request: Request) {
     const userPreferences =
       (await userRepository.getPreferences(session.user.id)) || undefined;
 
+      const clerk = await clerkClient();
+      const fullUser = await clerk.users.getUser(session.user.id);
+
     return streamText({
       model,
-      system: `${buildUserSystemPrompt(session.user, userPreferences)} ${
+      system: `${buildUserSystemPrompt(fullUser, userPreferences)}${
         instructions ? `\n\n${instructions}` : ""
       }`.trim(),
       messages,

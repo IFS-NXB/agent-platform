@@ -1,16 +1,40 @@
 {
-  "editor.formatOnSave": true,
-
   "[markdown]": {
-    "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
       "source.fixAll.markdownlint": "explicit"
-    }
+    },
+    "editor.formatOnSave": true
   },
-
-  "typescript.tsdk": "node_modules/typescript/lib",
+  "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
+  "deno.lint": true,
+  "deno.unstable": [
+    "bare-node-builtins",
+    "byonm",
+    "sloppy-imports",
+    "unsafe-proto",
+    "webgpu",
+    "broadcast-channel",
+    "worker-options",
+    "cron",
+    "kv",
+    "ffi",
+    "fs",
+    "http",
+    "net"
+  ],
+  "editor.formatOnSave": true,
   "eslint.workingDirectories": [
-    { "pattern": "app/*" },
-    { "pattern": "packages/*" }
-  ]
+    {
+      "pattern": "app/*"
+    },
+    {
+      "pattern": "packages/*"
+    }
+  ],
+  "typescript.tsdk": "node_modules/typescript/lib"
 }

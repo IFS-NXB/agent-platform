@@ -1,6 +1,6 @@
-import { getSession } from "auth/server";
-import { McpServerSchema } from "lib/db/pg/schema.pg";
 import { NextResponse } from "next/server";
+import { TablesInsert } from "../../../../supabase/types";
+import { getSession } from "../../../lib/auth/server";
 import { saveMcpClientAction } from "./actions";
 
 export async function POST(request: Request) {
@@ -8,10 +8,10 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const json = (await request.json()) as typeof McpServerSchema.$inferInsert;
+  const data = (await request.json()) as TablesInsert<"mcp_servers">;
 
   try {
-    await saveMcpClientAction(json);
+    await saveMcpClientAction(data);
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to save MCP client" },

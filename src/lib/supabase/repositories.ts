@@ -1,12 +1,68 @@
-import { UserPreferences } from "app-types/user";
 import { Database } from "../../../supabase/types";
+import { UserPreferences } from "../../types/user";
 import { createServerSupabaseClient } from "./server";
+
+// Import types directly to avoid import issues
+import type { AppUser, ClerkUserData } from "../../types/user";
 
 // Type helpers to cast Json to specific types
 type ChatThread = Database["public"]["Tables"]["chat_threads"]["Row"];
 type ChatMessage = Database["public"]["Tables"]["chat_messages"]["Row"];
 type Project = Database["public"]["Tables"]["projects"]["Row"];
-type User = Database["public"]["Tables"]["users"]["Row"];
+
+// Insert and Update types
+type ChatThreadInsert = Database["public"]["Tables"]["chat_threads"]["Insert"];
+type ChatMessageInsert = Database["public"]["Tables"]["chat_messages"]["Insert"];
+type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
+type ProjectUpdate = Database["public"]["Tables"]["projects"]["Update"];
+
+// Extended types for better type safety
+type ChatThreadWithMessages = ChatThread & {
+  messages: ChatMessage[];
+};
+
+// Json field types (these should match your actual data structures)
+type MessageParts = Array<{
+  type: string;
+  content: string;
+  [key: string]: any;
+}>;
+
+type MessageAttachments = Array<{
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  [key: string]: any;
+}>;
+
+type MessageAnnotations = Array<{
+  id: string;
+  type: string;
+  content: any;
+  [key: string]: any;
+}>;
+
+type ProjectInstructions = {
+  systemMessage?: string;
+  rules?: string[];
+  context?: string;
+  [key: string]: any;
+};
+
+type MCPServerConfig = {
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+  [key: string]: any;
+};
+
+// Workflow types
+type WorkflowNode = Database["public"]["Tables"]["workflow_nodes"]["Row"];
+type WorkflowEdge = Database["public"]["Tables"]["workflow_edges"]["Row"];
+type WorkflowNodeInsert = Database["public"]["Tables"]["workflow_nodes"]["Insert"];
+type WorkflowEdgeInsert = Database["public"]["Tables"]["workflow_edges"]["Insert"];
 
 // User Repository
 export const userRepository = {
@@ -36,7 +92,7 @@ export const userRepository = {
     await supabase
       .from("users")
       .update({
-        preferences: preferences as any,
+        preferences: preferences as UserPreferences,
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
@@ -53,12 +109,7 @@ export const userRepository = {
     return !error && !!data;
   },
 
-  async syncUser(userData: {
-    id: string;
-    email: string;
-    name: string;
-    image: string | null;
-  }): Promise<void> {
+  async syncUser(userData: ClerkUserData): Promise<void> {
     const supabase = createServerSupabaseClient();
 
     const { error } = await supabase.from("users").upsert({
@@ -73,6 +124,53 @@ export const userRepository = {
       console.error("Error syncing user:", error);
       throw error;
     }
+  },
+
+  async findById(userId: string): Promise<AppUser | null> {
+    const supabase = createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching user:", error);
+      return null;
+    }
+
+    if (!data) return null;
+
+    return {
+      ...data,
+      preferences: (data.preferences as UserPreferences) || {},
+    };
+  },
+
+  async updateUser(
+    id: string,
+    updates: Pick<AppUser, "name" | "image">
+  ): Promise<AppUser> {
+    const supabase = createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating user:", error);
+      throw error;
+    }
+
+    return {
+      ...data,
+      preferences: (data.preferences as UserPreferences) || {},
+    };
   },
 };
 
@@ -137,7 +235,7 @@ export const chatRepository = {
   ) {
     const supabase = createServerSupabaseClient();
 
-    const threadData: any = {
+    const threadData: ChatThreadInsert = {
       title,
       user_id: userId,
       project_id: projectId,
@@ -189,9 +287,9 @@ export const chatRepository = {
     id: string;
     threadId: string;
     role: string;
-    parts: any[];
-    attachments?: any[];
-    annotations?: any[];
+    parts: MessageParts;
+    attachments?: MessageAttachments;
+    annotations?: MessageAnnotations;
     model?: string;
   }) {
     const supabase = createServerSupabaseClient();
@@ -201,9 +299,9 @@ export const chatRepository = {
         id: message.id,
         thread_id: message.threadId,
         role: message.role,
-        parts: message.parts,
-        attachments: message.attachments,
-        annotations: message.annotations,
+        parts: message.parts as MessageParts,
+        attachments: message.attachments as MessageAttachments,
+        annotations: message.annotations as MessageAnnotations,
         model: message.model,
       })
       .select()
@@ -221,9 +319,9 @@ export const chatRepository = {
     id: string;
     threadId: string;
     role: string;
-    parts: any[];
-    attachments?: any[];
-    annotations?: any[];
+    parts: MessageParts;
+    attachments?: MessageAttachments;
+    annotations?: MessageAnnotations;
     model?: string;
   }) {
     return this.createMessage(message);
@@ -233,9 +331,9 @@ export const chatRepository = {
     id: string;
     threadId: string;
     role: string;
-    parts: any[];
-    attachments?: any[];
-    annotations?: any[];
+    parts: MessageParts;
+    attachments?: MessageAttachments;
+    annotations?: MessageAnnotations;
     model?: string;
   }) {
     const supabase = createServerSupabaseClient();
@@ -245,9 +343,9 @@ export const chatRepository = {
         id: message.id,
         thread_id: message.threadId,
         role: message.role,
-        parts: message.parts,
-        attachments: message.attachments,
-        annotations: message.annotations,
+        parts: message.parts as MessageParts,
+        attachments: message.attachments as MessageAttachments,
+        annotations: message.annotations as MessageAnnotations,
         model: message.model,
       })
       .select()
@@ -297,9 +395,9 @@ export const chatRepository = {
       id: string;
       threadId: string;
       role: string;
-      parts: any[];
-      attachments?: any[];
-      annotations?: any[];
+      parts: MessageParts;
+      attachments?: MessageAttachments;
+      annotations?: MessageAnnotations;
       model?: string;
       createdAt?: Date;
     }>
@@ -312,9 +410,9 @@ export const chatRepository = {
           id: msg.id,
           thread_id: msg.threadId,
           role: msg.role,
-          parts: msg.parts,
-          attachments: msg.attachments,
-          annotations: msg.annotations,
+          parts: msg.parts as MessageParts,
+          attachments: msg.attachments as MessageAttachments,
+          annotations: msg.annotations as MessageAnnotations,
           model: msg.model,
           created_at: msg.createdAt?.toISOString(),
         }))
@@ -356,8 +454,8 @@ export const chatRepository = {
     }
 
     return {
-      instructions: projectData?.instructions || "",
-      userPreferences: userData?.preferences || {},
+      instructions: (projectData?.instructions as ProjectInstructions) || "",
+      userPreferences: (userData?.preferences as UserPreferences) || {},
     };
   },
 
@@ -409,7 +507,7 @@ export const chatRepository = {
 
     return {
       instructions,
-      userPreferences: userData?.preferences || {},
+      userPreferences: (userData?.preferences as UserPreferences) || {},
     };
   },
 
@@ -536,7 +634,7 @@ export const workflowRepository = {
 
   async selectStructureById(
     workflowId: string,
-    options?: { ignoreNote?: boolean }
+    _options?: { ignoreNote?: boolean }
   ) {
     const supabase = createServerSupabaseClient();
 
@@ -613,7 +711,7 @@ export const workflowRepository = {
       isPublished?: boolean;
       visibility?: string;
     },
-    noGenerateInputNode?: boolean
+    _noGenerateInputNode?: boolean
   ) {
     const supabase = createServerSupabaseClient();
     const { data, error } = await supabase
@@ -659,8 +757,8 @@ export const workflowRepository = {
 
   async saveStructure(params: {
     workflowId: string;
-    nodes: any[];
-    edges: any[];
+    nodes: WorkflowNodeInsert[];
+    edges: WorkflowEdgeInsert[];
     deleteNodes?: string[];
     deleteEdges?: string[];
   }) {
@@ -755,7 +853,7 @@ export const projectRepository = {
   async createProject(project: {
     name: string;
     userId: string;
-    instructions?: any;
+    instructions?: ProjectInstructions;
   }) {
     const supabase = createServerSupabaseClient();
     const { data, error } = await supabase
@@ -763,7 +861,7 @@ export const projectRepository = {
       .insert({
         name: project.name,
         user_id: project.userId,
-        instructions: project.instructions,
+        instructions: project.instructions as ProjectInstructions,
       })
       .select()
       .single();
@@ -780,7 +878,7 @@ export const projectRepository = {
     projectId: string,
     updates: {
       name?: string;
-      instructions?: any;
+      instructions?: ProjectInstructions;
     }
   ) {
     const supabase = createServerSupabaseClient();
@@ -861,7 +959,7 @@ export const mcpRepository = {
   async save(server: {
     id?: string;
     name: string;
-    config: any;
+    config: MCPServerConfig;
     enabled?: boolean;
   }) {
     const supabase = createServerSupabaseClient();
@@ -870,7 +968,7 @@ export const mcpRepository = {
       .upsert({
         id: server.id,
         name: server.name,
-        config: server.config,
+        config: server.config as MCPServerConfig,
         enabled: server.enabled ?? true,
         updated_at: new Date().toISOString(),
       })

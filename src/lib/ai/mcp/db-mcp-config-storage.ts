@@ -60,7 +60,7 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
           const managerConfig = await manager.getClient(id);
           if (!managerConfig) {
             logger.debug(`Adding MCP client ${name}`);
-            return manager.addClient(id, name, config);
+            return manager.addClient(id, name, config as any);
           }
           if (
             !equal(
@@ -107,7 +107,10 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
     },
     async save(server) {
       try {
-        return mcpRepository.save(server);
+        return mcpRepository.save({
+          ...server,
+          enabled: server.enabled ?? true,
+        });
       } catch (error) {
         logger.error(
           `Failed to save MCP config "${server.name}" to database:`,

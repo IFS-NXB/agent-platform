@@ -1,10 +1,37 @@
-import { getSession } from "auth/server";
+import { DBEdge, DBNode } from "app-types/workflow";
 import { colorize } from "consola/utils";
 import { createWorkflowExecutor } from "lib/ai/workflow/executor/workflow-executor";
 import { encodeWorkflowEvent } from "lib/ai/workflow/shared.workflow";
+import { getSession } from "lib/auth/server";
 import { workflowRepository } from "lib/supabase/repositories";
 import { safeJSONParse, toAny } from "lib/utils";
 import logger from "logger";
+
+// Helper to convert snake_case DB fields to camelCase
+function toCamelCaseNode(dbNode: any): DBNode {
+  return {
+    id: dbNode.id,
+    workflowId: dbNode.workflow_id,
+    kind: dbNode.kind,
+    name: dbNode.name,
+    description: dbNode.description,
+    nodeConfig: dbNode.node_config,
+    uiConfig: dbNode.ui_config,
+    createdAt: dbNode.created_at,
+    updatedAt: dbNode.updated_at,
+  };
+}
+
+function toCamelCaseEdge(dbEdge: any): DBEdge {
+  return {
+    id: dbEdge.id,
+    workflowId: dbEdge.workflow_id,
+    source: dbEdge.source,
+    target: dbEdge.target,
+    uiConfig: dbEdge.ui_config,
+    createdAt: dbEdge.created_at,
+  };
+}
 
 export async function POST(
   request: Request,
@@ -29,8 +56,8 @@ export async function POST(
     message: colorize("cyan", `WORKFLOW '${workflow.name}' `),
   });
   const app = createWorkflowExecutor({
-    edges: workflow.edges,
-    nodes: workflow.nodes,
+    edges: workflow.edges.map(toCamelCaseEdge),
+    nodes: workflow.nodes.map(toCamelCaseNode),
     logger: wfLogger,
   });
 

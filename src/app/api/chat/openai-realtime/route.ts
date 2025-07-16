@@ -1,4 +1,6 @@
+import { clerkClient } from '@clerk/nextjs/server';
 import { AllowedMCPServer, VercelAIMcpTool } from "app-types/mcp";
+import { UserPreferences } from "app-types/user";
 import { getSession } from "auth/server";
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 import {
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
       })
       .orElse(undefined);
 
-    const { instructions, userPreferences } = projectId
+    const threadData = projectId
       ? await chatRepository.selectThreadInstructionsByProjectId(
           session.user.id,
           projectId
@@ -63,21 +65,28 @@ export async function POST(request: NextRequest) {
           threadId
         );
 
+    // Type cast the returned values
+    const instructions = threadData.instructions as { systemPrompt: string } | null;
+    const userPreferences = threadData.userPreferences as UserPreferences | undefined;
+
     const mcpServerCustomizations = await safe()
-      .map(() => {
-        if (Object.keys(tools ?? {}).length === 0)
+      .map(async () => {
+        if (!tools || Object.keys(tools).length === 0)
           throw new Error("No tools found");
-        return rememberMcpServerCustomizationsAction(session.user.id);
+        return await rememberMcpServerCustomizationsAction(session.user.id);
       })
-      .map((v) => filterMcpServerCustomizations(tools!, v))
+      .map((v) => filterMcpServerCustomizations(tools || {}, v))
       .orElse({});
 
     const openAITools = Object.entries(tools ?? {}).map(([name, tool]) => {
       return vercelAIToolToOpenAITool(tool, name);
     });
 
+    const clerk = await clerkClient();
+    const fullUser = await clerk.users.getUser(session.user.id);
+
     const systemPrompt = mergeSystemPrompt(
-      buildSpeechSystemPrompt(session.user, userPreferences),
+      buildSpeechSystemPrompt(fullUser, userPreferences),
       buildProjectInstructionsSystemPrompt(instructions),
       buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations)
     );

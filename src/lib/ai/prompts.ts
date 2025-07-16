@@ -1,8 +1,8 @@
 import { McpServerCustomizationsPrompt, MCPToolInfo } from "app-types/mcp";
 
-import { UserPreferences } from "app-types/user";
+import { User } from "@clerk/nextjs/server";
 import { Project } from "app-types/chat";
-import { User } from "better-auth";
+import { UserPreferences } from "app-types/user";
 import { createMCPToolId } from "./mcp/mcp-tool-id";
 
 export const CREATE_THREAD_TITLE_PROMPT = `\n
@@ -13,7 +13,7 @@ export const CREATE_THREAD_TITLE_PROMPT = `\n
 
 export const buildUserSystemPrompt = (
   user?: User,
-  userPreferences?: UserPreferences,
+  userPreferences?: UserPreferences
 ) => {
   let prompt = `
 You are better-chatbot, an intelligent AI assistant that leverages the Model Context Protocol (MCP) to seamlessly integrate and utilize various tools and resources. You excel at understanding user needs and efficiently orchestrating the available MCP tools to provide comprehensive, accurate assistance. You maintain context across conversations and adapt your responses based on the specific tools and capabilities available through your MCP connections.
@@ -21,9 +21,17 @@ You are better-chatbot, an intelligent AI assistant that leverages the Model Con
 ### User Context ###
 <user_information>
 - **System time**: ${new Date().toLocaleString()}
-${user?.name ? `- **User Name**: ${user?.name}` : ""}
-${user?.email ? `- **User Email**: ${user?.email}` : ""}
-${userPreferences?.profession ? `- **User Profession**: ${userPreferences?.profession}` : ""}
+${user?.firstName ? `- **User Name**: ${user?.firstName}` : ""}
+${
+  user?.primaryEmailAddress?.emailAddress
+    ? `- **User Email**: ${user?.primaryEmailAddress.emailAddress}`
+    : ""
+}
+${
+  userPreferences?.profession
+    ? `- **User Profession**: ${userPreferences?.profession}`
+    : ""
+}
 </user_information>`.trim();
   prompt += `\n\n`;
 
@@ -32,7 +40,7 @@ ${userPreferences?.profession ? `- **User Profession**: ${userPreferences?.profe
     prompt += `
 ### Addressing Preferences ###
 <addressing>
-  * Use the following name: ${userPreferences.displayName || user?.name}
+  * Use the following name: ${userPreferences.displayName || user?.firstName}
   * Use their name at appropriate moments to personalize the interaction
 </addressing>`.trim();
     prompt += `\n\n`;
@@ -88,7 +96,7 @@ export const mentionPrompt = `
 
 export const buildSpeechSystemPrompt = (
   user: User,
-  userPreferences?: UserPreferences,
+  userPreferences?: UserPreferences
 ) => {
   let prompt = `
 You are better-chatbot, a conversational AI assistant that helps users through voice interactions. You seamlessly integrate tools and resources via the Model Context Protocol (MCP) to provide helpful, natural responses. Keep your answers concise and conversational for voice-based interactions.
@@ -96,9 +104,17 @@ You are better-chatbot, a conversational AI assistant that helps users through v
 ### User Context ###
 <user_information>
 - **System time**: ${new Date().toLocaleString()}
-${user?.name ? `- **User Name**: ${user?.name}` : ""}
-${user?.email ? `- **User Email**: ${user?.email}` : ""}
-${userPreferences?.profession ? `- **User Profession**: ${userPreferences?.profession}` : ""}
+${user?.firstName ? `- **User Name**: ${user?.firstName}` : ""}
+${
+  user?.primaryEmailAddress?.emailAddress
+    ? `- **User Email**: ${user?.primaryEmailAddress.emailAddress}`
+    : ""
+}
+${
+  userPreferences?.profession
+    ? `- **User Profession**: ${userPreferences?.profession}`
+    : ""
+}
 </user_information>`.trim();
   prompt += `\n`;
   // Enhanced addressing preferences
@@ -106,7 +122,7 @@ ${userPreferences?.profession ? `- **User Profession**: ${userPreferences?.profe
     prompt += `
 ### Addressing Preferences ###
 <addressing>
-* Use the following name: ${userPreferences.displayName || user?.name}
+* Use the following name: ${userPreferences.displayName || user?.firstName}
 * Use their name at appropriate moments to personalize the interaction
 </addressing>`.trim();
     prompt += `\n`;
@@ -117,8 +133,8 @@ ${userPreferences?.profession ? `- **User Profession**: ${userPreferences?.profe
 ### Communication Style ###
 <response_style>
 - Speak in short, conversational sentences (one or two per reply)
-- Use simple words; avoid jargon unless the user uses it first. 
-- Never use lists, markdown, or code blocks—just speak naturally. 
+- Use simple words; avoid jargon unless the user uses it first.
+- Never use lists, markdown, or code blocks—just speak naturally.
 - If a request is ambiguous, ask a brief clarifying question instead of guessing.
 ${
   userPreferences?.responseStyleExample
@@ -137,7 +153,7 @@ ${userPreferences.responseStyleExample}
 };
 
 export const buildProjectInstructionsSystemPrompt = (
-  instructions?: Project["instructions"] | null,
+  instructions?: Project["instructions"] | null
 ) => {
   if (!instructions?.systemPrompt?.trim()) return undefined;
 
@@ -152,17 +168,17 @@ ${instructions.systemPrompt.trim()}
 };
 
 export const SUMMARIZE_PROMPT = `\n
-You are an expert AI assistant specialized in summarizing and extracting project requirements. 
-Read the following chat history and generate a concise, professional system instruction for a new AI assistant continuing this project. 
-This system message should clearly describe the project's context, goals, and any decisions or requirements discussed, in a way that guides future conversation. 
-Focus on actionable directives and critical details only, omitting any irrelevant dialogue or filler. 
+You are an expert AI assistant specialized in summarizing and extracting project requirements.
+Read the following chat history and generate a concise, professional system instruction for a new AI assistant continuing this project.
+This system message should clearly describe the project's context, goals, and any decisions or requirements discussed, in a way that guides future conversation.
+Focus on actionable directives and critical details only, omitting any irrelevant dialogue or filler.
 Ensure the tone is formal and precise. Base your summary strictly on the chat content provided, without adding new information.
 
 (Paste the chat transcript below.)
 `.trim();
 
 export const buildMcpServerCustomizationsSystemPrompt = (
-  instructions: Record<string, McpServerCustomizationsPrompt>,
+  instructions: Record<string, McpServerCustomizationsPrompt>
 ) => {
   const prompt = Object.values(instructions).reduce((acc, v) => {
     if (!v.prompt && !Object.keys(v.tools ?? {}).length) return acc;
@@ -174,7 +190,7 @@ ${
     ? Object.entries(v.tools)
         .map(
           ([toolName, toolPrompt]) =>
-            `- **${createMCPToolId(v.name, toolName)}**: ${toolPrompt}`,
+            `- **${createMCPToolId(v.name, toolName)}**: ${toolPrompt}`
         )
         .join("\n")
     : ""

@@ -14,6 +14,7 @@ import { customModelProvider, isToolCallUnsupportedModel } from "lib/ai/models";
 
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 
+import { clerkClient } from "@clerk/nextjs/server";
 import {
   chatApiSchemaRequestBodySchema,
   ChatMention,
@@ -240,8 +241,12 @@ export async function POST(request: Request) {
           .map((v) => filterMcpServerCustomizations(MCP_TOOLS!, v))
           .orElse({});
 
+        // Fetch full user data for system prompt
+        const clerk = await clerkClient();
+        const fullUser = await clerk.users.getUser(session.user.id);
+
         const systemPrompt = mergeSystemPrompt(
-          buildUserSystemPrompt(session.user, userPreferences),
+          buildUserSystemPrompt(fullUser, userPreferences),
           buildProjectInstructionsSystemPrompt(
             threadInstructions?.instructions
               ? { systemPrompt: threadInstructions.instructions }

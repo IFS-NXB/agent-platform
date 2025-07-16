@@ -3,14 +3,9 @@ import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 import { errorToString, safeJSONParse } from "lib/utils";
 import { Safe, safe } from "ts-safe";
 import { z } from "zod";
-// Note: Server schema types should be defined or imported properly
-// For now, we'll use a basic type definition
-type McpServerInsert = {
-  id?: string;
-  name: string;
-  config: any;
-  enabled?: boolean;
-};
+import { TablesInsert } from "../../../../supabase/types";
+
+type McpServerInsert = TablesInsert<"mcp_servers">;
 
 export async function selectMcpClientsAction() {
   const list = await mcpClientsManager.getClients();

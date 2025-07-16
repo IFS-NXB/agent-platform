@@ -15,7 +15,7 @@ import {
 
 import type { ChatModel, ChatThread, Project } from "app-types/chat";
 
-import { MCPToolInfo } from "app-types/mcp";
+import { McpServerCustomizationsPrompt, MCPToolInfo } from "app-types/mcp";
 import { customModelProvider } from "lib/ai/models";
 import { chatRepository, projectRepository } from "lib/supabase/repositories";
 import { toAny } from "lib/utils";
@@ -73,7 +73,7 @@ export async function selectThreadWithMessagesAction(threadId: string) {
   return { ...thread, messages: messages ?? [] };
 }
 
-export async function deleteMessageAction(messageId: string) {
+export async function deleteMessageAction(_messageId: string) {
   // TODO: Implement message deletion
   logger.warn("deleteMessageAction not implemented");
 }
@@ -91,7 +91,7 @@ export async function deleteThreadAction(threadId: string) {
 }
 
 export async function deleteMessagesByChatIdAfterTimestampAction(
-  messageId: string
+  _messageId: string
 ) {
   // TODO: Implement message deletion after timestamp
   logger.warn("deleteMessagesByChatIdAfterTimestampAction not implemented");
@@ -109,8 +109,8 @@ export async function selectMessagesByThreadIdAction(threadId: string) {
 }
 
 export async function updateThreadAction(
-  id: string,
-  thread: Partial<Omit<ChatThread, "createdAt" | "updatedAt" | "userId">>
+  _id: string,
+  _thread: Partial<Omit<ChatThread, "createdAt" | "updatedAt" | "userId">>
 ) {
   // TODO: Implement thread update
   logger.warn("updateThreadAction not implemented");
@@ -279,19 +279,21 @@ export async function rememberProjectInstructionsAction(
   return (project.instructions as Project["instructions"]) || null;
 }
 
-export async function rememberThreadAction(threadId: string) {
+export async function rememberThreadAction(_threadId: string) {
   // TODO: Implement thread caching
   logger.warn("rememberThreadAction not implemented");
   return null;
 }
 
-export async function updateProjectNameAction(id: string, name: string) {
+export async function updateProjectNameAction(_id: string, _name: string) {
   // TODO: Implement project name update
   logger.warn("updateProjectNameAction not implemented");
   return null;
 }
 
-export async function rememberMcpServerCustomizationsAction(userId: string) {
+export async function rememberMcpServerCustomizationsAction(
+  _userId: string
+): Promise<Record<string, McpServerCustomizationsPrompt>> {
   // TODO: Implement MCP server customizations caching
   logger.warn("rememberMcpServerCustomizationsAction not implemented");
   return {};
