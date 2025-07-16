@@ -57,7 +57,15 @@ export function AppSidebarThreads() {
     {
       onError: handleErrorWithToast,
       fallbackData: [],
-      onSuccess: (data) => storeMutate({ threadList: data }),
+      onSuccess: (data) => storeMutate({
+        threadList: data.map((thread) => ({
+          id: thread.id,
+          title: thread.title,
+          userId: thread.user_id,
+          createdAt: new Date(thread.created_at || ""),
+          projectId: thread.project_id,
+        })),
+      }),
     },
   );
 
@@ -94,7 +102,7 @@ export function AppSidebarThreads() {
     ];
 
     displayThreadList.forEach((thread) => {
-      const threadDate = new Date(thread.lastMessageAt);
+      const threadDate = new Date(thread.created_at || "");
       threadDate.setHours(0, 0, 0, 0);
 
       if (threadDate.getTime() === today.getTime()) {

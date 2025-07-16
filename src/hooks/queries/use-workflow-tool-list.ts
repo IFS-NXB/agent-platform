@@ -10,7 +10,19 @@ export function useWorkflowToolList(options?: SWRConfiguration) {
     focusThrottleInterval: 1000 * 60 * 30,
     fallbackData: [],
     onSuccess: (data) => {
-      appStore.setState({ workflowToolList: data });
+      appStore.setState({
+        workflowToolList: data.map((w: any) => ({
+          id: w.id,
+          name: w.name,
+          description: w.description ?? undefined,
+          icon: w.icon ?? undefined,
+          visibility: (w.visibility as "public" | "private" | "readonly") ?? "private",
+          isPublished: w.is_published ?? false,
+          userName: w.user_name ?? "",
+          userAvatar: w.user_avatar ?? undefined,
+          updatedAt: new Date(w.updated_at || ""),
+        })),
+      });
     },
     ...options,
   });

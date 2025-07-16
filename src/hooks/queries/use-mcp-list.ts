@@ -12,7 +12,16 @@ export function useMcpList(options?: SWRConfiguration) {
     fallbackData: [],
     onError: handleErrorWithToast,
     onSuccess: (data) => {
-      appStore.setState({ mcpList: data });
+      appStore.setState({
+        mcpList: data.map((server: any) => ({
+          id: server.id ?? server.name, // fallback if id is missing
+          name: server.name,
+          config: server.config,
+          error: server.error,
+          status: server.status ?? "disconnected",
+          toolInfo: server.toolInfo ?? [],
+        })),
+      });
     },
     ...options,
   });

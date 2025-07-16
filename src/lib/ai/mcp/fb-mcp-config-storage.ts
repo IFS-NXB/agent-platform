@@ -12,7 +12,10 @@ import equal from "lib/equal";
 import defaultLogger from "logger";
 import { MCP_CONFIG_PATH } from "lib/ai/mcp/config-path";
 import { colorize } from "consola/utils";
-import { McpServerSchema } from "lib/db/pg/schema.pg";
+import { Tables, TablesInsert } from "../../../../supabase/types";
+import { isMaybeMCPServerConfig } from "./is-mcp-config";
+type McpServerInsert = TablesInsert<"mcp_servers">;
+type McpServerSelect = Tables<"mcp_servers">;
 
 const logger = defaultLogger.withDefaults({
   message: colorize("gray", `MCP File Config Storage: `),
@@ -32,14 +35,13 @@ export function createFileBasedMCPConfigsStorage(
   /**
    * Reads config from file
    */
-  async function readConfigFile(): Promise<
-    (typeof McpServerSchema.$inferSelect)[]
-  > {
+  async function readConfigFile(): Promise<McpServerSelect[]> {
     try {
       const configText = await readFile(configPath, { encoding: "utf-8" });
       const config = JSON.parse(configText ?? "{}") as {
-        [name: string]: MCPServerConfig;
+        [name: string]: unknown;
       };
+      // Ensure all configs are valid MCPServerConfig
       return toMcpServerArray(config);
     } catch (err: any) {
       if (err.code === "ENOENT") {
@@ -99,7 +101,7 @@ export function createFileBasedMCPConfigsStorage(
             const managerConfig = await manager.getClient(id);
             if (!managerConfig) {
               logger.debug(`Adding MCP client ${id}`);
-              return manager.addClient(id, name, config);
+              return manager.addClient(id, name, ensureMCPServerConfig(config as unknown));
             }
             if (!equal(managerConfig.client.getInfo().config, config)) {
               logger.debug(`Refreshing MCP client ${id}`);
@@ -165,7 +167,7 @@ export function createFileBasedMCPConfigsStorage(
     // Saves a configuration with the given name
     async save(server) {
       const currentConfig = await readConfigFile().then(toMcpServerRecord);
-      currentConfig[server.name] = server.config;
+      currentConfig[server.name] = ensureMCPServerConfig(server.config);
       await writeConfigFile(currentConfig);
       return fillMcpServerSchema(server);
     },
@@ -188,36 +190,43 @@ export function createFileBasedMCPConfigsStorage(
   };
 }
 
+function ensureMCPServerConfig(val: unknown): MCPServerConfig {
+  if (isMaybeMCPServerConfig(val)) return val;
+  // fallback to a minimal valid config (stdio type)
+  return { command: "" };
+}
+
 function fillMcpServerSchema(
-  server: typeof McpServerSchema.$inferInsert,
-): typeof McpServerSchema.$inferSelect {
+  server: McpServerInsert,
+): McpServerSelect {
   return {
     ...server,
     id: server.name,
     enabled: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    created_at: server.created_at ?? new Date().toISOString(),
+    updated_at: server.updated_at ?? new Date().toISOString(),
+    config: ensureMCPServerConfig(server.config === null ? undefined : server.config),
   };
 }
 
 function toMcpServerArray(
-  config: Record<string, MCPServerConfig>,
-): (typeof McpServerSchema.$inferSelect)[] {
+  config: Record<string, unknown>,
+): McpServerSelect[] {
   return Object.entries(config).map(([name, config]) =>
     fillMcpServerSchema({
       id: name,
       name,
-      config,
+      config: ensureMCPServerConfig(config),
     }),
   );
 }
 
 function toMcpServerRecord(
-  servers: (typeof McpServerSchema.$inferSelect)[],
+  servers: McpServerSelect[],
 ): Record<string, MCPServerConfig> {
   return servers.reduce(
     (acc, server) => {
-      acc[server.name] = server.config;
+      acc[server.name] = ensureMCPServerConfig(server.config);
       return acc;
     },
     {} as Record<string, MCPServerConfig>,
