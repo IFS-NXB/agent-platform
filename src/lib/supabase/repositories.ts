@@ -97,6 +97,9 @@ export const chatRepository = {
   async getThread(threadId: string, userId?: string) {
     const supabase = createServerSupabaseClient();
 
+    // Log the attempt
+    console.log("Fetching thread:", { threadId, userId });
+
     let query = supabase.from("chat_threads").select("*").eq("id", threadId);
 
     // If userId is provided, add it to the query for additional safety
@@ -107,7 +110,13 @@ export const chatRepository = {
     const { data, error } = await query.single();
 
     if (error) {
-      console.error("Error fetching chat thread:", error);
+      console.error("Error fetching chat thread:", {
+        error,
+        threadId,
+        userId,
+        errorCode: error.code,
+        errorDetails: error.details,
+      });
       return null;
     }
 
@@ -120,56 +129,44 @@ export const chatRepository = {
     };
   },
 
-  async createThread(userId: string, title: string, projectId?: string) {
+  async createThread(
+    userId: string,
+    title: string,
+    projectId?: string,
+    id?: string
+  ) {
     const supabase = createServerSupabaseClient();
 
-    // Ensure user exists before creating thread
-    await this.ensureUserExists(userId);
+    const threadData: any = {
+      title,
+      user_id: userId,
+      project_id: projectId,
+    };
+
+    // If an ID is provided, use it; otherwise let the database generate one
+    if (id) {
+      threadData.id = id;
+    }
 
     const { data, error } = await supabase
       .from("chat_threads")
-      .insert({
-        title,
-        user_id: userId,
-        project_id: projectId,
-      })
+      .insert(threadData)
       .select()
       .single();
 
     if (error) {
-      console.error("Error creating chat thread:", error);
+      console.error("Error creating chat thread:", {
+        error,
+        userId,
+        projectId,
+        id,
+        errorCode: error.code,
+        errorDetails: error.details,
+      });
       throw error;
     }
 
     return data;
-  },
-
-  async ensureUserExists(userId: string) {
-    const supabase = createServerSupabaseClient();
-
-    // Check if user exists
-    const { data: existingUser, error: fetchError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id", userId)
-      .single();
-
-    if (fetchError && fetchError.code === "PGRST116") {
-      // User doesn't exist, create a minimal user record
-      const { error: insertError } = await supabase.from("users").insert({
-        id: userId,
-        email: `${userId}@temp.com`, // Temporary email, should be updated via webhook
-        name: "User", // Temporary name, should be updated via webhook
-      });
-
-      if (insertError) {
-        console.error("Error creating minimal user record:", insertError);
-        throw insertError;
-      }
-    } else if (fetchError) {
-      console.error("Error checking user existence:", fetchError);
-      throw fetchError;
-    }
   },
 
   async getMessages(threadId: string) {

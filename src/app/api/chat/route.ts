@@ -80,9 +80,16 @@ export async function POST(request: Request) {
 
     const model = customModelProvider.getModel(chatModel);
 
+    // Log the thread fetch attempt
+    logger.debug(
+      `Attempting to fetch thread: ${id} for user: ${session.user.id}`
+    );
     let thread = await chatRepository.getThread(id, session.user.id);
 
     if (!thread) {
+      logger.debug(
+        `Thread not found, creating new thread: ${id} with projectId: ${projectId}`
+      );
       const title = await generateTitleFromUserMessageAction({
         message,
         model,
@@ -90,18 +97,27 @@ export async function POST(request: Request) {
       const newThread = await chatRepository.createThread(
         session.user.id,
         title,
-        projectId ?? undefined
+        projectId ?? undefined,
+        id // Pass the thread ID to use the client-specified ID
       );
+      logger.debug(`Thread created successfully: ${JSON.stringify(newThread)}`);
 
       // Immediately fetch the thread to ensure it's available and consistent
       thread = await chatRepository.getThread(newThread.id, session.user.id);
 
       if (!thread) {
+        logger.error(`Failed to fetch thread after creation: ${newThread.id}`);
         throw new Error("Failed to create thread");
       }
+      logger.debug(`Thread fetched successfully after creation: ${thread.id}`);
     }
 
     if (thread!.user_id !== session.user.id) {
+      logger.error(
+        `Forbidden: Thread user_id ${
+          thread!.user_id
+        } doesn't match session user_id ${session.user.id}`
+      );
       return new Response("Forbidden", { status: 403 });
     }
 

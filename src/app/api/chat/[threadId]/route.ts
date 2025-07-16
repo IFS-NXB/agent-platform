@@ -16,24 +16,43 @@ export async function POST(
   const { threadId } = await params;
   const { messages, chatModel, projectId } = await request.json();
 
+  console.log(
+    `[API /chat/[threadId]] Attempting to fetch thread: ${threadId} for user: ${session.user.id}`
+  );
   let thread = await chatRepository.selectThread(threadId, session.user.id);
   if (!thread) {
+    console.log(
+      `[API /chat/[threadId]] Thread not found, creating new thread: ${threadId} with projectId: ${projectId}`
+    );
     const title = await generateTitleFromUserMessageAction({
       message: messages[0],
       model: customModelProvider.getModel(chatModel),
     });
-    const newThread = await chatRepository.insertThread({
-      id: threadId,
-      projectId: projectId ?? null,
-      title,
-      userId: session.user.id,
-    });
-    thread = {
-      ...newThread,
-      messages: [],
-    };
+    try {
+      const newThread = await chatRepository.insertThread({
+        id: threadId,
+        projectId: projectId ?? null,
+        title,
+        userId: session.user.id,
+      });
+      console.log(
+        `[API /chat/[threadId]] Thread created successfully: ${JSON.stringify(
+          newThread
+        )}`
+      );
+      thread = {
+        ...newThread,
+        messages: [],
+      };
+    } catch (error) {
+      console.error(`[API /chat/[threadId]] Error creating thread:`, error);
+      throw error;
+    }
   }
   if (thread.user_id !== session.user.id) {
+    console.error(
+      `[API /chat/[threadId]] Forbidden: Thread user_id ${thread.user_id} doesn't match session user_id ${session.user.id}`
+    );
     return new Response("Forbidden", { status: 403 });
   }
   await chatRepository.insertMessages(

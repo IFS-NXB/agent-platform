@@ -41,7 +41,7 @@ export default async function Page({
         <main className="my-8">
           {mcpClient ? (
             <MCPEditor
-              initialConfig={mcpClient.config}
+              initialConfig={mcpClient.config as any}
               name={mcpClient.name}
               id={mcpClient.id}
             />

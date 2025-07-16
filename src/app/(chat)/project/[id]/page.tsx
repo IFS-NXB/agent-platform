@@ -99,7 +99,7 @@ export default function ProjectPage() {
     allowedAppDefaultToolkit,
   });
 
-  const { input, setInput, append, stop, status, messages } = useChat({
+  const { input, setInput, append, stop, status } = useChat({
     id: threadId,
     api: "/api/chat",
     experimental_prepareRequestBody: ({ messages }) => {

@@ -117,8 +117,24 @@ export async function updateThreadAction(
 }
 
 export async function deleteThreadsAction() {
-  // TODO: Implement all threads deletion
-  logger.warn("deleteThreadsAction not implemented");
+  try {
+    const userId = await getUserId();
+    const threads = await chatRepository.getThreads(userId);
+
+    // Delete each thread individually (which will cascade delete messages)
+    await Promise.all(
+      threads.map((thread) => chatRepository.deleteThread(thread.id, userId))
+    );
+
+    logger.info("All threads deleted successfully", {
+      userId,
+      count: threads.length,
+    });
+    return { success: true, count: threads.length };
+  } catch (error) {
+    logger.error("Error deleting all threads", { error });
+    throw error;
+  }
 }
 
 export async function generateExampleToolSchemaAction(options: {
