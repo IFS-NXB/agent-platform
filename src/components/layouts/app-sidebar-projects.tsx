@@ -44,7 +44,15 @@ export function AppSidebarProjects() {
     {
       onError: handleErrorWithToast,
       fallbackData: [],
-      onSuccess: (data) => storeMutate({ projectList: data }),
+      onSuccess: (data) => storeMutate({
+        projectList: data.map((project) => ({
+          id: project.id,
+          name: project.name,
+          userId: project.user_id,
+          createdAt: new Date(project.created_at || ""),
+          updatedAt: new Date(project.updated_at || ""),
+        })),
+      }),
     },
   );
 
@@ -151,11 +159,11 @@ export function AppSidebarProjects() {
                           <p>
                             {expanded
                               ? t("showLessProjects", {
-                                  count: projectList.length - 3,
-                                })
+                                count: projectList.length - 3,
+                              })
                               : t("showMoreProjects", {
-                                  count: projectList.length - 3,
-                                })}
+                                count: projectList.length - 3,
+                              })}
                           </p>
 
                           {expanded ? (

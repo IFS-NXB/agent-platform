@@ -298,12 +298,26 @@ export async function POST(request: Request) {
                 threadId: thread!.id,
                 model: chatModel?.model ?? undefined,
                 role: "user",
-                parts: message.parts,
-                attachments: message.experimental_attachments,
+                parts: message.parts.map((part: any) => ({
+                  ...part,
+                  content: part.text ?? part.content ?? "",
+                })),
+                attachments: (message.experimental_attachments ?? []).map((a: any, i: number) => ({
+                  id: a.id ?? String(i),
+                  name: a.name ?? "attachment",
+                  type: a.type ?? "unknown",
+                  url: a.url ?? "",
+                  ...a,
+                })),
                 id: message.id,
                 annotations: appendAnnotations(message.annotations, {
                   usageTokens: usage.promptTokens,
-                }),
+                }).map((a: any, i: number) => ({
+                  id: a.id ?? String(i),
+                  type: a.type ?? "unknown",
+                  content: a.content ?? a,
+                  ...a,
+                })),
               });
             }
             const assistantMessage = appendMessages.at(-1);
@@ -322,7 +336,7 @@ export async function POST(request: Request) {
                 role: assistantMessage.role,
                 id: assistantMessage.id,
                 parts: (assistantMessage.parts as UIMessage["parts"]).map(
-                  (v) => {
+                  (v: any) => {
                     if (
                       v.type == "tool-invocation" &&
                       v.toolInvocation.state == "result" &&
@@ -330,12 +344,13 @@ export async function POST(request: Request) {
                     ) {
                       return {
                         ...v,
+                        content: v.text ?? v.content ?? "",
                         toolInvocation: {
                           ...v.toolInvocation,
                           result: {
                             ...v.toolInvocation.result,
                             history: v.toolInvocation.result.history.map(
-                              (h) => {
+                              (h: any) => {
                                 return {
                                   ...h,
                                   result: undefined,
@@ -346,11 +361,25 @@ export async function POST(request: Request) {
                         },
                       };
                     }
-                    return v;
+                    return {
+                      ...v,
+                      content: v.text ?? v.content ?? "",
+                    };
                   }
                 ),
-                attachments: assistantMessage.experimental_attachments,
-                annotations,
+                attachments: (assistantMessage.experimental_attachments ?? []).map((a: any, i: number) => ({
+                  id: a.id ?? String(i),
+                  name: a.name ?? "attachment",
+                  type: a.type ?? "unknown",
+                  url: a.url ?? "",
+                  ...a,
+                })),
+                annotations: annotations.map((a: any, i: number) => ({
+                  id: a.id ?? String(i),
+                  type: a.type ?? "unknown",
+                  content: a.content ?? a,
+                  ...a,
+                })),
               });
             }
           },
