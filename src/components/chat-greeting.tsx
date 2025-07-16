@@ -1,6 +1,6 @@
 "use client";
 
-import { authClient } from "auth/client";
+import { useAuthClient } from "auth/client";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -14,25 +14,23 @@ function getGreetingByTime() {
 }
 
 export const ChatGreeting = () => {
-  const { data: session } = authClient.useSession();
+  const { user } = useAuthClient();
 
   const t = useTranslations("Chat.Greeting");
 
-  const user = session?.user;
-
   const word = useMemo(() => {
-    if (!user?.name) return "";
+    if (!user?.fullName) return "";
     const words = [
-      t(getGreetingByTime(), { name: user.name }),
-      t("niceToSeeYouAgain", { name: user.name }),
-      t("whatAreYouWorkingOnToday", { name: user.name }),
+      t(getGreetingByTime(), { name: user.fullName }),
+      t("niceToSeeYouAgain", { name: user.fullName }),
+      t("whatAreYouWorkingOnToday", { name: user.fullName }),
       t("letMeKnowWhenYoureReadyToBegin"),
       t("whatAreYourThoughtsToday"),
       t("whereWouldYouLikeToStart"),
-      t("whatAreYouThinking", { name: user.name }),
+      t("whatAreYouThinking", { name: user.fullName }),
     ];
     return words[Math.floor(Math.random() * words.length)];
-  }, [user?.name]);
+  }, [user?.fullName]);
 
   return (
     <motion.div

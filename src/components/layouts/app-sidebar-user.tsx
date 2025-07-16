@@ -1,71 +1,54 @@
 "use client";
 
-import {
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  DropdownMenu,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal,
-  DropdownMenuSubContent,
-  DropdownMenuCheckboxItem,
-} from "ui/dropdown-menu";
-import { AvatarFallback, AvatarImage, Avatar } from "ui/avatar";
-import { SidebarMenuButton, SidebarMenuItem, SidebarMenu } from "ui/sidebar";
-import {
-  ChevronsUpDown,
-  Command,
-  LogOutIcon,
-  Settings2,
-  Palette,
-  Languages,
-  Sun,
-  MoonStar,
-  ChevronRight,
-} from "lucide-react";
-import { useTheme } from "next-themes";
 import { appStore } from "@/app/store";
+import { useThemeStyle } from "@/hooks/use-theme-style";
+import { getLocaleAction } from "@/i18n/get-locale";
+import { useAuthClient } from "auth/client";
 import { BASE_THEMES, COOKIE_KEY_LOCALE, SUPPORTED_LOCALES } from "lib/const";
 import { capitalizeFirstLetter, cn } from "lib/utils";
-import { authClient } from "auth/client";
+import {
+  ChevronRight,
+  ChevronsUpDown,
+  Command,
+  Languages,
+  LogOutIcon,
+  MoonStar,
+  Palette,
+  Settings2,
+  Sun,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
-import useSWR from "swr";
-import { getLocaleAction } from "@/i18n/get-locale";
+import { useTheme } from "next-themes";
 import { useCallback } from "react";
-import { GithubIcon } from "ui/github-icon";
+import useSWR from "swr";
+import { Avatar, AvatarFallback, AvatarImage } from "ui/avatar";
 import { DiscordIcon } from "ui/discord-icon";
-import { useThemeStyle } from "@/hooks/use-theme-style";
-import { Session, User } from "better-auth";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "ui/dropdown-menu";
+import { GithubIcon } from "ui/github-icon";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "ui/sidebar";
 
-export function AppSidebarUser({
-  session,
-}: { session?: { session: Session; user: User } }) {
+export function AppSidebarUser() {
   const appStoreMutate = appStore((state) => state.mutate);
   const t = useTranslations("Layout");
-
-  const user = session?.user;
+  const { user, signOut } = useAuthClient();
 
   const logout = () => {
-    authClient.signOut().finally(() => {
+    signOut().finally(() => {
       window.location.href = "/sign-in";
     });
   };
-
-  useSWR(
-    "/session-update",
-    () =>
-      authClient.getSession().then(() => {
-        console.log(`session-update: ${new Date().toISOString()}`);
-      }),
-    {
-      refreshIntervalOnFocus: false,
-      refreshWhenHidden: true,
-      refreshInterval: 1000 * 60 * 5,
-    },
-  );
 
   return (
     <SidebarMenu>
@@ -79,12 +62,16 @@ export function AppSidebarUser({
               <Avatar className="rounded-full size-8 border">
                 <AvatarImage
                   className="object-cover"
-                  src={user?.image || "/pf.png"}
-                  alt={user?.name || ""}
+                  src={user?.imageUrl || "/pf.png"}
+                  alt={user?.fullName || ""}
                 />
-                <AvatarFallback>{user?.name?.slice(0, 1) || ""}</AvatarFallback>
+                <AvatarFallback>
+                  {user?.fullName?.slice(0, 1) || ""}
+                </AvatarFallback>
               </Avatar>
-              <span className="truncate">{user?.email}</span>
+              <span className="truncate">
+                {user?.emailAddresses[0]?.emailAddress}
+              </span>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -97,17 +84,17 @@ export function AppSidebarUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-full">
                   <AvatarImage
-                    src={user?.image || "/pf.png"}
-                    alt={user?.name || ""}
+                    src={user?.imageUrl || "/pf.png"}
+                    alt={user?.fullName || ""}
                   />
                   <AvatarFallback className="rounded-lg">
-                    {user?.name?.slice(0, 1) || ""}
+                    {user?.fullName?.slice(0, 1) || ""}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user?.name}</span>
+                  <span className="truncate font-medium">{user?.fullName}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {user?.email}
+                    {user?.emailAddresses[0]?.emailAddress}
                   </span>
                 </div>
               </div>
@@ -135,7 +122,7 @@ export function AppSidebarUser({
               onClick={() => {
                 window.open(
                   "https://github.com/cgoinglove/better-chatbot/issues/new",
-                  "_blank",
+                  "_blank"
                 );
               }}
             >
@@ -177,7 +164,7 @@ function SelectTheme() {
           <>
             <span className="text-muted-foreground text-xs min-w-0 truncate">
               {`${capitalizeFirstLetter(theme)} ${capitalizeFirstLetter(
-                themeStyle,
+                themeStyle
               )}`}
             </span>
             <ChevronRight className="size-4 ml-2" />
@@ -203,7 +190,7 @@ function SelectTheme() {
                 className={cn(
                   theme === "dark" &&
                     "bg-accent ring ring-muted-foreground/40 text-foreground",
-                  "p-1 rounded-full",
+                  "p-1 rounded-full"
                 )}
               >
                 <MoonStar className="size-3" />
@@ -212,7 +199,7 @@ function SelectTheme() {
                 className={cn(
                   theme === "light" &&
                     "bg-accent ring ring-muted-foreground/40 text-foreground",
-                  "p-1 rounded-full",
+                  "p-1 rounded-full"
                 )}
               >
                 <Sun className="size-3" />

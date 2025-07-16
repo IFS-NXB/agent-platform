@@ -1,7 +1,6 @@
-import { chatRepository } from "lib/db/repository";
 import { getSession } from "auth/server";
+import { chatRepository } from "lib/supabase/repositories";
 import { redirect } from "next/navigation";
-import { generateUUID } from "lib/utils";
 import { generateTitleFromUserMessageAction } from "../chat/actions";
 
 export async function POST(request: Request) {
@@ -9,7 +8,7 @@ export async function POST(request: Request) {
 
   const session = await getSession();
 
-  if (!session?.user.id) {
+  if (!session?.user?.id) {
     return redirect("/sign-in");
   }
 
@@ -18,12 +17,11 @@ export async function POST(request: Request) {
     model,
   });
 
-  const newThread = await chatRepository.insertThread({
-    id: id ?? generateUUID(),
-    projectId,
+  const newThread = await chatRepository.createThread(
+    session.user.id,
     title,
-    userId: session.user.id,
-  });
+    projectId
+  );
 
   return Response.json({
     threadId: newThread.id,

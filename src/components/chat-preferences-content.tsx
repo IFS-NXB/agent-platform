@@ -3,7 +3,7 @@ import { selectMcpClientsAction } from "@/app/api/mcp/actions";
 import { appStore } from "@/app/store";
 import { useObjectState } from "@/hooks/use-object-state";
 import { UserPreferences } from "app-types/user";
-import { authClient } from "auth/client";
+import { useAuthClient } from "auth/client";
 import { fetcher } from "lib/utils";
 import { AlertCircle, ArrowLeft, Loader } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import useSWR from "swr";
 import { safe } from "ts-safe";
 
+import { MCPServerInfo } from "app-types/mcp";
 import { Button } from "ui/button";
 import { ExamplePlaceholder } from "ui/example-placeholder";
 import { Input } from "ui/input";
@@ -19,7 +20,6 @@ import { Label } from "ui/label";
 import { Skeleton } from "ui/skeleton";
 import { Textarea } from "ui/textarea";
 import { McpServerCustomizationContent } from "./mcp-customization-popup";
-import { MCPServerInfo } from "app-types/mcp";
 
 export function UserInstructionsContent() {
   const t = useTranslations();
@@ -31,7 +31,7 @@ export function UserInstructionsContent() {
       t("Chat.ChatPreferences.responseStyleExample3"),
       t("Chat.ChatPreferences.responseStyleExample4"),
     ],
-    [],
+    []
   );
 
   const professionExamples = useMemo(
@@ -42,10 +42,10 @@ export function UserInstructionsContent() {
       t("Chat.ChatPreferences.professionExample4"),
       t("Chat.ChatPreferences.professionExample5"),
     ],
-    [],
+    []
   );
 
-  const { data: session } = authClient.useSession();
+  const { user } = useAuthClient();
 
   const [preferences, setPreferences] = useObjectState<UserPreferences>({
     displayName: "",
@@ -74,7 +74,7 @@ export function UserInstructionsContent() {
         fetch("/api/user/preferences", {
           method: "PUT",
           body: JSON.stringify(preferences),
-        }),
+        })
       )
       .ifOk(() => fetchPreferences())
       .watch((result) => {
@@ -114,7 +114,7 @@ export function UserInstructionsContent() {
             <Skeleton className="h-9" />
           ) : (
             <Input
-              placeholder={session?.user.name || ""}
+              placeholder={user?.fullName || ""}
               value={preferences.displayName}
               onChange={(e) => {
                 setPreferences({
@@ -152,7 +152,7 @@ export function UserInstructionsContent() {
         <div className="flex flex-col gap-2 text-foreground">
           <Label>
             {t(
-              "Chat.ChatPreferences.whatPersonalPreferencesShouldBeTakenIntoAccountInResponses",
+              "Chat.ChatPreferences.whatPersonalPreferencesShouldBeTakenIntoAccountInResponses"
             )}
           </Label>
           <span className="text-xs text-muted-foreground"></span>
@@ -209,7 +209,7 @@ export function MCPInstructionsContent() {
       onSuccess: (data) => {
         appStoreMutate({ mcpList: data });
       },
-    },
+    }
   );
 
   if (mcpServer) {

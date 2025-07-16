@@ -1,8 +1,11 @@
 import { getSession } from "auth/server";
-import { workflowRepository } from "lib/db/repository";
+import { workflowRepository } from "lib/supabase/repositories";
 
 export async function GET() {
   const session = await getSession();
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 });
+  }
   const workflows = await workflowRepository.selectAll(session.user.id);
   return Response.json(workflows);
 }
@@ -19,12 +22,15 @@ export async function POST(request: Request) {
   } = await request.json();
 
   const session = await getSession();
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 });
+  }
 
   if (id) {
     const hasAccess = await workflowRepository.checkAccess(
       id,
       session.user.id,
-      false,
+      false
     );
     if (!hasAccess) {
       return new Response("Unauthorized", { status: 401 });
@@ -41,7 +47,7 @@ export async function POST(request: Request) {
       icon,
       userId: session.user.id,
     },
-    noGenerateInputNode,
+    noGenerateInputNode
   );
 
   return Response.json(workflow);

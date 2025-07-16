@@ -1,58 +1,58 @@
 import {
+  appendClientMessage,
   appendResponseMessages,
   createDataStreamResponse,
+  formatDataStreamPart,
+  Message,
   smoothStream,
   streamText,
-  type UIMessage,
-  formatDataStreamPart,
-  appendClientMessage,
-  Message,
   Tool,
+  type UIMessage,
 } from "ai";
 
 import { customModelProvider, isToolCallUnsupportedModel } from "lib/ai/models";
 
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 
-import { chatRepository, workflowRepository } from "lib/db/repository";
-import globalLogger from "logger";
+import {
+  chatApiSchemaRequestBodySchema,
+  ChatMention,
+  ChatMessageAnnotation,
+} from "app-types/chat";
+import { getSession } from "auth/server";
 import {
   buildMcpServerCustomizationsSystemPrompt,
   buildProjectInstructionsSystemPrompt,
   buildUserSystemPrompt,
   mentionPrompt,
 } from "lib/ai/prompts";
-import {
-  chatApiSchemaRequestBodySchema,
-  ChatMention,
-  ChatMessageAnnotation,
-} from "app-types/chat";
+import { chatRepository, workflowRepository } from "lib/supabase/repositories";
+import globalLogger from "logger";
 
 import { errorIf, safe } from "ts-safe";
 
-import {
-  appendAnnotations,
-  excludeToolExecution,
-  filterMCPToolsByMentions,
-  handleError,
-  manualToolExecuteByLastMessage,
-  mergeSystemPrompt,
-  convertToMessage,
-  extractInProgressToolPart,
-  assignToolResult,
-  filterMCPToolsByAllowedMCPServers,
-  filterMcpServerCustomizations,
-  workflowToVercelAITools,
-} from "./shared.chat";
+import { isVercelAIWorkflowTool } from "app-types/workflow";
+import { colorize } from "consola/utils";
+import { APP_DEFAULT_TOOL_KIT } from "lib/ai/tools/tool-kit";
+import { objectFlow } from "lib/utils";
 import {
   generateTitleFromUserMessageAction,
   rememberMcpServerCustomizationsAction,
 } from "./actions";
-import { getSession } from "auth/server";
-import { colorize } from "consola/utils";
-import { isVercelAIWorkflowTool } from "app-types/workflow";
-import { objectFlow } from "lib/utils";
-import { APP_DEFAULT_TOOL_KIT } from "lib/ai/tools/tool-kit";
+import {
+  appendAnnotations,
+  assignToolResult,
+  convertToMessage,
+  excludeToolExecution,
+  extractInProgressToolPart,
+  filterMcpServerCustomizations,
+  filterMCPToolsByAllowedMCPServers,
+  filterMCPToolsByMentions,
+  handleError,
+  manualToolExecuteByLastMessage,
+  mergeSystemPrompt,
+  workflowToVercelAITools,
+} from "./shared.chat";
 
 const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Chat API: `),
@@ -80,30 +80,46 @@ export async function POST(request: Request) {
 
     const model = customModelProvider.getModel(chatModel);
 
-    let thread = await chatRepository.selectThreadDetails(id);
+    let thread = await chatRepository.getThread(id, session.user.id);
 
     if (!thread) {
       const title = await generateTitleFromUserMessageAction({
         message,
         model,
       });
-      const newThread = await chatRepository.insertThread({
-        id,
-        projectId: projectId ?? null,
+      const newThread = await chatRepository.createThread(
+        session.user.id,
         title,
-        userId: session.user.id,
-      });
-      thread = await chatRepository.selectThreadDetails(newThread.id);
+        projectId ?? undefined
+      );
+
+      // Immediately fetch the thread to ensure it's available and consistent
+      thread = await chatRepository.getThread(newThread.id, session.user.id);
+
+      if (!thread) {
+        throw new Error("Failed to create thread");
+      }
     }
 
-    if (thread!.userId !== session.user.id) {
+    if (thread!.user_id !== session.user.id) {
       return new Response("Forbidden", { status: 403 });
     }
 
     // if is false, it means the last message is manual tool execution
     const isLastMessageUserMessage = message.role == "user";
 
-    const previousMessages = (thread?.messages ?? []).map(convertToMessage);
+    const previousMessages = (thread?.messages ?? []).map((msg) =>
+      convertToMessage({
+        id: msg.id,
+        threadId: msg.thread_id,
+        role: msg.role as "user" | "assistant" | "system" | "data",
+        parts: (msg.parts as any[]) || [],
+        attachments: (msg.attachments as any[]) || undefined,
+        annotations: (msg.annotations as any[]) || undefined,
+        model: msg.model,
+        createdAt: msg.created_at ? new Date(msg.created_at) : new Date(),
+      })
+    );
 
     const messages: Message[] = isLastMessageUserMessage
       ? appendClientMessage({
@@ -144,10 +160,10 @@ export async function POST(request: Request) {
             workflowRepository.selectToolByIds(
               mentions
                 .filter((m) => m.type == "workflow")
-                .map((v) => v.workflowId),
-            ),
+                .map((v) => v.workflowId)
+            )
           )
-          .map((v) => workflowToVercelAITools(v, dataStream))
+          .map((v) => workflowToVercelAITools(v as any, dataStream))
           .orElse({});
 
         const APP_DEFAULT_TOOLS = safe(APP_DEFAULT_TOOL_KIT)
@@ -155,7 +171,7 @@ export async function POST(request: Request) {
           .map((tools) => {
             if (mentions.length) {
               const defaultToolMentions = mentions.filter(
-                (m) => m.type == "defaultTool",
+                (m) => m.type == "defaultTool"
               );
               return Array.from(Object.values(tools)).reduce((acc, t) => {
                 const allowed = objectFlow(t).filter((_, k) => {
@@ -165,12 +181,9 @@ export async function POST(request: Request) {
               }, {});
             }
             return (
-              allowedAppDefaultToolkit?.reduce(
-                (acc, key) => {
-                  return { ...acc, ...tools[key] };
-                },
-                {} as Record<string, Tool>,
-              ) || {}
+              allowedAppDefaultToolkit?.reduce((acc, key) => {
+                return { ...acc, ...tools[key] };
+              }, {} as Record<string, Tool>) || {}
             );
           })
           .orElse({});
@@ -180,18 +193,27 @@ export async function POST(request: Request) {
             inProgressToolStep,
             message,
             { ...MCP_TOOLS, ...WORKFLOW_TOOLS, ...APP_DEFAULT_TOOLS },
-            request.signal,
+            request.signal
           );
           assignToolResult(inProgressToolStep, toolResult);
           dataStream.write(
             formatDataStreamPart("tool_result", {
               toolCallId: inProgressToolStep.toolInvocation.toolCallId,
               result: toolResult,
-            }),
+            })
           );
         }
 
-        const userPreferences = thread?.userPreferences || undefined;
+        // Get thread instructions and user preferences
+        const threadInstructions =
+          await chatRepository.selectThreadInstructions(
+            session.user.id,
+            thread.id
+          );
+
+        const userPreferences = threadInstructions?.userPreferences
+          ? (threadInstructions.userPreferences as any)
+          : undefined;
 
         const mcpServerCustomizations = await safe()
           .map(() => {
@@ -204,9 +226,13 @@ export async function POST(request: Request) {
 
         const systemPrompt = mergeSystemPrompt(
           buildUserSystemPrompt(session.user, userPreferences),
-          buildProjectInstructionsSystemPrompt(thread?.instructions),
+          buildProjectInstructionsSystemPrompt(
+            threadInstructions?.instructions
+              ? { systemPrompt: threadInstructions.instructions }
+              : undefined
+          ),
           buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations),
-          mentions.length ? mentionPrompt : undefined,
+          mentions.length ? mentionPrompt : undefined
         );
 
         const vercelAITooles = safe({ ...MCP_TOOLS, ...WORKFLOW_TOOLS })
@@ -222,7 +248,11 @@ export async function POST(request: Request) {
 
         logger.debug(`tool mode: ${toolChoice}, mentions: ${mentions.length}`);
         logger.debug(
-          `binding tool count APP_DEFAULT: ${Object.keys(APP_DEFAULT_TOOLS ?? {}).length}, MCP: ${Object.keys(MCP_TOOLS ?? {}).length}, Workflow: ${Object.keys(WORKFLOW_TOOLS ?? {}).length}`,
+          `binding tool count APP_DEFAULT: ${
+            Object.keys(APP_DEFAULT_TOOLS ?? {}).length
+          }, MCP: ${Object.keys(MCP_TOOLS ?? {}).length}, Workflow: ${
+            Object.keys(WORKFLOW_TOOLS ?? {}).length
+          }`
         );
         logger.debug(`model: ${chatModel?.provider}/${chatModel?.model}`);
 
@@ -245,7 +275,7 @@ export async function POST(request: Request) {
             if (isLastMessageUserMessage) {
               await chatRepository.insertMessage({
                 threadId: thread!.id,
-                model: chatModel?.model ?? null,
+                model: chatModel?.model ?? undefined,
                 role: "user",
                 parts: message.parts,
                 attachments: message.experimental_attachments,
@@ -262,11 +292,11 @@ export async function POST(request: Request) {
                 {
                   usageTokens: usage.completionTokens,
                   toolChoice,
-                },
+                }
               );
               dataStream.writeMessageAnnotation(annotations.at(-1)!);
               await chatRepository.upsertMessage({
-                model: chatModel?.model ?? null,
+                model: chatModel?.model ?? undefined,
                 threadId: thread!.id,
                 role: assistantMessage.role,
                 id: assistantMessage.id,
@@ -289,14 +319,14 @@ export async function POST(request: Request) {
                                   ...h,
                                   result: undefined,
                                 };
-                              },
+                              }
                             ),
                           },
                         },
                       };
                     }
                     return v;
-                  },
+                  }
                 ),
                 attachments: assistantMessage.experimental_attachments,
                 annotations,
@@ -310,7 +340,7 @@ export async function POST(request: Request) {
         });
         result.usage.then((useage) => {
           logger.debug(
-            `usage input: ${useage.promptTokens}, usage output: ${useage.completionTokens}, usage total: ${useage.totalTokens}`,
+            `usage input: ${useage.promptTokens}, usage output: ${useage.completionTokens}, usage total: ${useage.totalTokens}`
           );
         });
       },

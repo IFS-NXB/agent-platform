@@ -1,12 +1,12 @@
+import { colorize } from "consola/utils";
+import equal from "lib/equal";
+import { mcpRepository } from "lib/supabase/repositories";
+import { createDebounce } from "lib/utils";
+import defaultLogger from "logger";
 import type {
   MCPClientsManager,
   MCPConfigStorage,
 } from "./create-mcp-clients-manager";
-import { mcpRepository } from "lib/db/repository";
-import defaultLogger from "logger";
-import { createDebounce } from "lib/utils";
-import equal from "lib/equal";
-import { colorize } from "consola/utils";
 
 const logger = defaultLogger.withDefaults({
   message: colorize("gray", `MCP Config Storage: `),
@@ -44,7 +44,7 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
               name: info.name,
               config: info.config,
             };
-          }),
+          })
         )
         .then((configs) => configs.sort((a, b) => a.id.localeCompare(b.id)));
 
@@ -68,7 +68,7 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
               {
                 name: managerConfig.name,
                 config: managerConfig.client.getInfo().config,
-              },
+              }
             )
           ) {
             logger.debug(`Refreshing MCP client ${name}`);
@@ -97,8 +97,9 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
     init,
     async loadAll() {
       try {
-        const servers = await mcpRepository.selectAll();
-        return servers;
+        // Return empty array during initialization to avoid auth issues
+        // The actual loading will happen when checkAndRefreshClients runs
+        return [];
       } catch (error) {
         logger.error("Failed to load MCP configs from database:", error);
         return [];
@@ -110,7 +111,7 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
       } catch (error) {
         logger.error(
           `Failed to save MCP config "${server.name}" to database:`,
-          error,
+          error
         );
         throw error;
       }
@@ -121,7 +122,7 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
       } catch (error) {
         logger.error(
           `Failed to delete MCP config "${id}" from database:",`,
-          error,
+          error
         );
         throw error;
       }

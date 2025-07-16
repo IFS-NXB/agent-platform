@@ -2,13 +2,13 @@ import { McpServerCustomizationZodSchema } from "app-types/mcp";
 import { getSession } from "auth/server";
 import { serverCache } from "lib/cache";
 import { CacheKeys } from "lib/cache/cache-keys";
-import { mcpServerCustomizationRepository } from "lib/db/repository";
+import { mcpServerCustomizationRepository } from "lib/supabase/repositories";
 
 import { NextResponse } from "next/server";
 
 export async function GET(
   _: Request,
-  { params }: { params: Promise<{ server: string }> },
+  { params }: { params: Promise<{ server: string }> }
 ) {
   const { server } = await params;
   const session = await getSession();
@@ -26,7 +26,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ server: string }> },
+  { params }: { params: Promise<{ server: string }> }
 ) {
   const { server } = await params;
   const session = await getSession();
@@ -44,7 +44,7 @@ export async function POST(
     await mcpServerCustomizationRepository.upsertMcpServerCustomization({
       userId: session.user.id,
       mcpServerId,
-      prompt,
+      prompt: prompt || "",
     });
   const key = CacheKeys.mcpServerCustomizations(session.user.id);
   void serverCache.delete(key);
@@ -54,7 +54,7 @@ export async function POST(
 
 export async function DELETE(
   _: Request,
-  { params }: { params: Promise<{ server: string }> },
+  { params }: { params: Promise<{ server: string }> }
 ) {
   const { server } = await params;
   const session = await getSession();
@@ -66,7 +66,7 @@ export async function DELETE(
     {
       mcpServerId: server,
       userId: session.user.id,
-    },
+    }
   );
   const key = CacheKeys.mcpServerCustomizations(session.user.id);
   void serverCache.delete(key);

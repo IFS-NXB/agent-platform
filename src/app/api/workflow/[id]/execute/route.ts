@@ -1,18 +1,21 @@
 import { getSession } from "auth/server";
-import { createWorkflowExecutor } from "lib/ai/workflow/executor/workflow-executor";
-import { workflowRepository } from "lib/db/repository";
-import { encodeWorkflowEvent } from "lib/ai/workflow/shared.workflow";
-import logger from "logger";
 import { colorize } from "consola/utils";
+import { createWorkflowExecutor } from "lib/ai/workflow/executor/workflow-executor";
+import { encodeWorkflowEvent } from "lib/ai/workflow/shared.workflow";
+import { workflowRepository } from "lib/supabase/repositories";
 import { safeJSONParse, toAny } from "lib/utils";
+import logger from "logger";
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const { query } = await request.json();
   const session = await getSession();
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 });
+  }
   const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
@@ -80,7 +83,7 @@ export async function POST(
           {
             disableHistory: true,
             timeout: 1000 * 60 * 5,
-          },
+          }
         )
         .then((result) => {
           if (!result.isOk) {

@@ -1,11 +1,11 @@
 import { getSession } from "auth/server";
-import { mcpMcpToolCustomizationRepository } from "lib/db/repository";
+import { mcpMcpToolCustomizationRepository } from "lib/supabase/repositories";
 
 import { NextResponse } from "next/server";
 
 export async function GET(
   _: Request,
-  { params }: { params: Promise<{ server: string }> },
+  { params }: { params: Promise<{ server: string }> }
 ) {
   const { server } = await params;
   const session = await getSession();

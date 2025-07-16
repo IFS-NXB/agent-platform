@@ -1,10 +1,10 @@
-import { redirect } from "next/navigation";
-import { getSession } from "auth/server";
 import { Message, smoothStream, streamText } from "ai";
+import { getSession } from "auth/server";
 import { customModelProvider } from "lib/ai/models";
-import logger from "logger";
 import { buildUserSystemPrompt } from "lib/ai/prompts";
-import { userRepository } from "lib/db/repository";
+import { userRepository } from "lib/supabase/repositories";
+import logger from "logger";
+import { redirect } from "next/navigation";
 
 export async function POST(request: Request) {
   try {

@@ -1,13 +1,12 @@
-import "server-only";
 import {
+  tool as createTool,
+  DataStreamWriter,
+  formatDataStreamPart,
+  jsonSchema,
   LoadAPIKeyError,
   Message,
   Tool,
   ToolInvocation,
-  jsonSchema,
-  tool as createTool,
-  DataStreamWriter,
-  formatDataStreamPart,
 } from "ai";
 import {
   ChatMention,
@@ -16,19 +15,20 @@ import {
   ClientToolInvocationZodSchema,
   ToolInvocationUIPart,
 } from "app-types/chat";
-import { errorToString, objectFlow, toAny } from "lib/utils";
-import { callMcpToolAction } from "../mcp/actions";
-import logger from "logger";
 import {
   AllowedMCPServer,
   McpServerCustomizationsPrompt,
   VercelAIMcpTool,
 } from "app-types/mcp";
 import { MANUAL_REJECT_RESPONSE_PROMPT } from "lib/ai/prompts";
+import { errorToString, objectFlow, toAny } from "lib/utils";
+import logger from "logger";
+import "server-only";
+import { callMcpToolAction } from "../mcp/actions";
 
 import { ObjectJsonSchema7 } from "app-types/util";
+import { workflowRepository } from "lib/supabase/repositories";
 import { safe } from "ts-safe";
-import { workflowRepository } from "lib/db/repository";
 
 import {
   VercelAIWorkflowTool,
@@ -40,32 +40,29 @@ import { NodeKind } from "lib/ai/workflow/workflow.interface";
 
 export function filterMCPToolsByMentions(
   tools: Record<string, VercelAIMcpTool>,
-  mentions: ChatMention[],
+  mentions: ChatMention[]
 ) {
   if (mentions.length === 0) {
     return tools;
   }
   const toolMentions = mentions.filter(
-    (mention) => mention.type == "mcpTool" || mention.type == "mcpServer",
+    (mention) => mention.type == "mcpTool" || mention.type == "mcpServer"
   );
 
-  const metionsByServer = toolMentions.reduce(
-    (acc, mention) => {
-      if (mention.type == "mcpServer") {
-        return {
-          ...acc,
-          [mention.serverId]: Object.values(tools).map(
-            (tool) => tool._originToolName,
-          ),
-        };
-      }
+  const metionsByServer = toolMentions.reduce((acc, mention) => {
+    if (mention.type == "mcpServer") {
       return {
         ...acc,
-        [mention.serverId]: [...(acc[mention.serverId] ?? []), mention.name],
+        [mention.serverId]: Object.values(tools).map(
+          (tool) => tool._originToolName
+        ),
       };
-    },
-    {} as Record<string, string[]>,
-  ); // {serverId: [toolName1, toolName2]}
+    }
+    return {
+      ...acc,
+      [mention.serverId]: [...(acc[mention.serverId] ?? []), mention.name],
+    };
+  }, {} as Record<string, string[]>); // {serverId: [toolName1, toolName2]}
 
   return objectFlow(tools).filter((_tool) => {
     if (!metionsByServer[_tool._mcpServerId]) return false;
@@ -75,7 +72,7 @@ export function filterMCPToolsByMentions(
 
 export function filterMCPToolsByAllowedMCPServers(
   tools: Record<string, VercelAIMcpTool>,
-  allowedMcpServers?: Record<string, AllowedMCPServer>,
+  allowedMcpServers?: Record<string, AllowedMCPServer>
 ): Record<string, VercelAIMcpTool> {
   if (!allowedMcpServers) {
     return tools;
@@ -83,13 +80,13 @@ export function filterMCPToolsByAllowedMCPServers(
   return objectFlow(tools).filter((_tool) => {
     if (!allowedMcpServers[_tool._mcpServerId]?.tools) return true;
     return allowedMcpServers[_tool._mcpServerId].tools.includes(
-      _tool._originToolName,
+      _tool._originToolName
     );
   });
 }
 
 export function excludeToolExecution(
-  tool: Record<string, Tool>,
+  tool: Record<string, Tool>
 ): Record<string, Tool> {
   return objectFlow(tool).map((value) => {
     return createTool({
@@ -101,7 +98,7 @@ export function excludeToolExecution(
 
 export function appendAnnotations(
   annotations: any[] = [],
-  annotationsToAppend: ChatMessageAnnotation[] | ChatMessageAnnotation,
+  annotationsToAppend: ChatMessageAnnotation[] | ChatMessageAnnotation
 ): ChatMessageAnnotation[] {
   const newAnnotations = Array.isArray(annotationsToAppend)
     ? annotationsToAppend
@@ -123,14 +120,14 @@ export function manualToolExecuteByLastMessage(
     string,
     VercelAIMcpTool | VercelAIWorkflowTool | (Tool & { __$ref__?: string })
   >,
-  abortSignal?: AbortSignal,
+  abortSignal?: AbortSignal
 ) {
   const { args, toolName } = part.toolInvocation;
 
   const manulConfirmation = (message.parts as ToolInvocationUIPart[]).find(
     (_part) => {
       return _part.toolInvocation?.toolCallId == part.toolInvocation.toolCallId;
-    },
+    }
   )?.toolInvocation as Extract<ToolInvocation, { state: "result" }>;
 
   const tool = tools[toolName];
@@ -158,7 +155,7 @@ export function manualToolExecuteByLastMessage(
           return callMcpToolAction(
             mcpTool._mcpServerId,
             mcpTool._originToolName,
-            args,
+            args
           );
         }
         return tool.execute!(args, {
@@ -200,7 +197,7 @@ export function convertToMessage(message: ChatMessage): Message {
 }
 
 export function extractInProgressToolPart(
-  messages: Message[],
+  messages: Message[]
 ): ToolInvocationUIPart | null {
   let result: ToolInvocationUIPart | null = null;
 
@@ -226,16 +223,13 @@ export function assignToolResult(toolPart: ToolInvocationUIPart, result: any) {
 
 export function filterMcpServerCustomizations(
   tools: Record<string, VercelAIMcpTool>,
-  mcpServerCustomization: Record<string, McpServerCustomizationsPrompt>,
+  mcpServerCustomization: Record<string, McpServerCustomizationsPrompt>
 ): Record<string, McpServerCustomizationsPrompt> {
-  const toolNamesByServerId = Object.values(tools).reduce(
-    (acc, tool) => {
-      if (!acc[tool._mcpServerId]) acc[tool._mcpServerId] = [];
-      acc[tool._mcpServerId].push(tool._originToolName);
-      return acc;
-    },
-    {} as Record<string, string[]>,
-  );
+  const toolNamesByServerId = Object.values(tools).reduce((acc, tool) => {
+    if (!acc[tool._mcpServerId]) acc[tool._mcpServerId] = [];
+    acc[tool._mcpServerId].push(tool._originToolName);
+    return acc;
+  }, {} as Record<string, string[]>);
 
   return Object.entries(mcpServerCustomization).reduce(
     (acc, [serverId, mcpServerCustomization]) => {
@@ -262,7 +256,7 @@ export function filterMcpServerCustomizations(
 
       return acc;
     },
-    {} as Record<string, McpServerCustomizationsPrompt>,
+    {} as Record<string, McpServerCustomizationsPrompt>
   );
 }
 
@@ -304,7 +298,7 @@ export const workflowToVercelAITool = ({
         .map((id) =>
           workflowRepository.selectStructureById(id, {
             ignoreNote: true,
-          }),
+          })
         )
         .map((workflow) => {
           if (!workflow) throw new Error("Not Found Workflow");
@@ -324,7 +318,7 @@ export const workflowToVercelAITool = ({
             if (e.node.name == "SKIP") return;
             if (e.eventType == "NODE_START") {
               const node = workflow.nodes.find(
-                (node) => node.id == e.node.name,
+                (node) => node.id == e.node.name
               )!;
               if (!node) return;
               history.push({
@@ -360,7 +354,7 @@ export const workflowToVercelAITool = ({
               formatDataStreamPart("tool_result", {
                 toolCallId,
                 result: toolResult,
-              }),
+              })
             );
           });
           return executor.run(
@@ -369,7 +363,7 @@ export const workflowToVercelAITool = ({
             },
             {
               disableHistory: true,
-            },
+            }
           );
         })
         .map((result) => {
@@ -423,20 +417,17 @@ export const workflowToVercelAITools = (
     description?: string;
     schema: ObjectJsonSchema7;
   }[],
-  dataStream: DataStreamWriter,
+  dataStream: DataStreamWriter
 ) => {
   return workflows
     .map((v) =>
       workflowToVercelAITool({
         ...v,
         dataStream,
-      }),
+      })
     )
-    .reduce(
-      (prev, cur) => {
-        prev[cur._toolName] = cur;
-        return prev;
-      },
-      {} as Record<string, VercelAIWorkflowTool>,
-    );
+    .reduce((prev, cur) => {
+      prev[cur._toolName] = cur;
+      return prev;
+    }, {} as Record<string, VercelAIWorkflowTool>);
 };

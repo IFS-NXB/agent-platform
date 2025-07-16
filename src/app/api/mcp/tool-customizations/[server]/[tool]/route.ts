@@ -2,11 +2,11 @@ import { McpToolCustomizationZodSchema } from "app-types/mcp";
 import { getSession } from "auth/server";
 import { serverCache } from "lib/cache";
 import { CacheKeys } from "lib/cache/cache-keys";
-import { mcpMcpToolCustomizationRepository } from "lib/db/repository";
+import { mcpMcpToolCustomizationRepository } from "lib/supabase/repositories";
 
 export async function GET(
   _: Request,
-  { params }: { params: Promise<{ server: string; tool: string }> },
+  { params }: { params: Promise<{ server: string; tool: string }> }
 ) {
   const { server, tool } = await params;
   const session = await getSession();
@@ -24,7 +24,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ server: string; tool: string }> },
+  { params }: { params: Promise<{ server: string; tool: string }> }
 ) {
   const { server, tool } = await params;
   const session = await getSession();
@@ -39,7 +39,7 @@ export async function POST(
       ...body,
       mcpServerId: server,
       toolName: tool,
-    },
+    }
   );
 
   const result =
@@ -47,7 +47,7 @@ export async function POST(
       userId: session.user.id,
       mcpServerId,
       toolName,
-      prompt,
+      prompt: prompt || "",
     });
   const key = CacheKeys.mcpServerCustomizations(session.user.id);
   void serverCache.delete(key);
@@ -57,7 +57,7 @@ export async function POST(
 
 export async function DELETE(
   _: Request,
-  { params }: { params: Promise<{ server: string; tool: string }> },
+  { params }: { params: Promise<{ server: string; tool: string }> }
 ) {
   const { server, tool } = await params;
   const session = await getSession();

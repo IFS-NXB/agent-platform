@@ -1,10 +1,10 @@
+import Workflow from "@/components/workflow/workflow";
+import { getSessionOrRedirect } from "auth/server";
 import {
   convertDBEdgeToUIEdge,
   convertDBNodeToUINode,
 } from "lib/ai/workflow/shared.workflow";
-import Workflow from "@/components/workflow/workflow";
-import { getSession } from "auth/server";
-import { workflowRepository } from "lib/db/repository";
+import { workflowRepository } from "lib/supabase/repositories";
 import { notFound } from "next/navigation";
 
 export default async function WorkflowPage({
@@ -13,7 +13,7 @@ export default async function WorkflowPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await getSession();
+  const session = await getSessionOrRedirect();
   const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
@@ -25,7 +25,7 @@ export default async function WorkflowPage({
   const hasEditAccess = await workflowRepository.checkAccess(
     id,
     session.user.id,
-    false,
+    false
   );
   const initialNodes = workflow.nodes.map(convertDBNodeToUINode);
   const initialEdges = workflow.edges.map(convertDBEdgeToUIEdge);

@@ -7,15 +7,15 @@ import PromptInput from "@/components/prompt-input";
 import { ThreadDropdown } from "@/components/thread-dropdown";
 import { useToRef } from "@/hooks/use-latest";
 import { useChat } from "@ai-sdk/react";
-import { ChatApiSchemaRequestBody, Project } from "app-types/chat";
+import { ChatApiSchemaRequestBody } from "app-types/chat";
 import { generateUUID } from "lib/utils";
 
 import {
-  Loader,
-  MoreHorizontal,
   FileUp,
-  Pencil,
+  Loader,
   MessagesSquare,
+  MoreHorizontal,
+  Pencil,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -74,7 +74,7 @@ export default function ProjectPage() {
   const router = useRouter();
   const threadId = useMemo(() => generateUUID(), []);
 
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
 
   const [
     appStoreMutate,
@@ -89,7 +89,7 @@ export default function ProjectPage() {
       state.toolChoice,
       state.allowedMcpServers,
       state.allowedAppDefaultToolkit,
-    ]),
+    ])
   );
 
   const latestRef = useToRef({
@@ -99,7 +99,7 @@ export default function ProjectPage() {
     allowedAppDefaultToolkit,
   });
 
-  const { input, setInput, append, stop, status } = useChat({
+  const { input, setInput, append, stop, status, messages } = useChat({
     id: threadId,
     api: "/api/chat",
     experimental_prepareRequestBody: ({ messages }) => {
@@ -118,7 +118,10 @@ export default function ProjectPage() {
     sendExtraMessageFields: true,
     generateId: generateUUID,
     experimental_throttle: 100,
-    onFinish: () => {
+    onFinish: (message, { finishReason, usage }) => {
+      // Use the threadId that we know was successfully created
+      console.log("onFinish - navigating to thread:", threadId);
+
       mutate("threads").then(() => {
         router.push(`/chat/${threadId}`);
       });
@@ -194,9 +197,9 @@ export default function ProjectPage() {
           <FeatureCard
             title="Add Instructions"
             description={
-              project?.instructions?.systemPrompt ||
+              (project?.instructions as any)?.systemPrompt ||
               t(
-                "writeHowTheChatbotShouldRespondToThisProjectOrWhatInformationItNeeds",
+                "writeHowTheChatbotShouldRespondToThisProjectOrWhatInformationItNeeds"
               )
             }
             icon={<Pencil size={18} className="text-muted-foreground" />}

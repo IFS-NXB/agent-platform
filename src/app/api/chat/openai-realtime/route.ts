@@ -1,21 +1,21 @@
-import { NextRequest } from "next/server";
-import { getSession } from "auth/server";
 import { AllowedMCPServer, VercelAIMcpTool } from "app-types/mcp";
-import { chatRepository } from "lib/db/repository";
-import {
-  filterMcpServerCustomizations,
-  filterMCPToolsByAllowedMCPServers,
-  mergeSystemPrompt,
-} from "../shared.chat";
+import { getSession } from "auth/server";
+import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 import {
   buildMcpServerCustomizationsSystemPrompt,
   buildProjectInstructionsSystemPrompt,
   buildSpeechSystemPrompt,
 } from "lib/ai/prompts";
-import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
-import { errorIf, safe } from "ts-safe";
 import { DEFAULT_VOICE_TOOLS } from "lib/ai/speech";
+import { chatRepository } from "lib/supabase/repositories";
+import { NextRequest } from "next/server";
+import { errorIf, safe } from "ts-safe";
 import { rememberMcpServerCustomizationsAction } from "../actions";
+import {
+  filterMcpServerCustomizations,
+  filterMCPToolsByAllowedMCPServers,
+  mergeSystemPrompt,
+} from "../shared.chat";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         JSON.stringify({ error: "OPENAI_API_KEY is not set" }),
         {
           status: 500,
-        },
+        }
       );
     }
 
@@ -56,11 +56,11 @@ export async function POST(request: NextRequest) {
     const { instructions, userPreferences } = projectId
       ? await chatRepository.selectThreadInstructionsByProjectId(
           session.user.id,
-          projectId,
+          projectId
         )
       : await chatRepository.selectThreadInstructions(
           session.user.id,
-          threadId,
+          threadId
         );
 
     const mcpServerCustomizations = await safe()
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     const systemPrompt = mergeSystemPrompt(
       buildSpeechSystemPrompt(session.user, userPreferences),
       buildProjectInstructionsSystemPrompt(instructions),
-      buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations),
+      buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations)
     );
 
     const r = await fetch("https://api.openai.com/v1/realtime/sessions", {

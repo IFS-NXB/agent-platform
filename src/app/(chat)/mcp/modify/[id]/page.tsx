@@ -1,14 +1,16 @@
 import MCPEditor from "@/components/mcp-editor";
-import { Alert } from "ui/alert";
-import Link from "next/link";
+import { mcpRepository } from "lib/supabase/repositories";
 import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { mcpRepository } from "lib/db/repository";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Alert } from "ui/alert";
 
 export default async function Page({
   params,
-}: { params: Promise<{ id: string }> }) {
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const t = await getTranslations();
   const mcpClient = await mcpRepository.selectById(id);

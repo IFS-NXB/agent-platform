@@ -1,9 +1,16 @@
 "use server";
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
-import { z } from "zod";
-import { Safe, safe } from "ts-safe";
 import { errorToString, safeJSONParse } from "lib/utils";
-import { McpServerSchema } from "lib/db/pg/schema.pg";
+import { Safe, safe } from "ts-safe";
+import { z } from "zod";
+// Note: Server schema types should be defined or imported properly
+// For now, we'll use a basic type definition
+type McpServerInsert = {
+  id?: string;
+  name: string;
+  config: any;
+  enabled?: boolean;
+};
 
 export async function selectMcpClientsAction() {
   const list = await mcpClientsManager.getClients();
@@ -26,9 +33,7 @@ export async function selectMcpClientAction(id: string) {
   };
 }
 
-export async function saveMcpClientAction(
-  server: typeof McpServerSchema.$inferInsert,
-) {
+export async function saveMcpClientAction(server: McpServerInsert) {
   if (process.env.NOT_ALLOW_ADD_MCP_SERVERS) {
     throw new Error("Not allowed to add MCP servers");
   }
@@ -41,7 +46,7 @@ export async function saveMcpClientAction(
   const result = nameSchema.safeParse(server.name);
   if (!result.success) {
     throw new Error(
-      "Name must contain only alphanumeric characters (A-Z, a-z, 0-9) and hyphens (-)",
+      "Name must contain only alphanumeric characters (A-Z, a-z, 0-9) and hyphens (-)"
     );
   }
 
@@ -51,7 +56,7 @@ export async function saveMcpClientAction(
 export async function existMcpClientByServerNameAction(serverName: string) {
   const client = await mcpClientsManager.getClients().then((clients) => {
     return clients.find(
-      (client) => client.client.getInfo().name === serverName,
+      (client) => client.client.getInfo().name === serverName
     );
   });
   return !!client;
@@ -103,7 +108,7 @@ function safeCallToolResult(chain: Safe<any>) {
 export async function callMcpToolAction(
   id: string,
   toolName: string,
-  input?: unknown,
+  input?: unknown
 ) {
   const chain = safe(async () => {
     const client = await mcpClientsManager.getClient(id);
@@ -118,12 +123,12 @@ export async function callMcpToolAction(
 export async function callMcpToolByServerNameAction(
   serverName: string,
   toolName: string,
-  input?: unknown,
+  input?: unknown
 ) {
   const chain = safe(async () => {
     const client = await mcpClientsManager.getClients().then((clients) => {
       return clients.find(
-        (client) => client.client.getInfo().name === serverName,
+        (client) => client.client.getInfo().name === serverName
       );
     });
     if (!client) {

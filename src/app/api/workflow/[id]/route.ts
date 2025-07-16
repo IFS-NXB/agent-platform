@@ -1,12 +1,15 @@
 import { getSession } from "auth/server";
-import { workflowRepository } from "lib/db/repository";
+import { workflowRepository } from "lib/supabase/repositories";
 
 export async function GET(
   _: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const session = await getSession();
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 });
+  }
   const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
@@ -17,14 +20,17 @@ export async function GET(
 
 export async function DELETE(
   _: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const session = await getSession();
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 });
+  }
   const hasAccess = await workflowRepository.checkAccess(
     id,
     session.user.id,
-    false,
+    false
   );
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });

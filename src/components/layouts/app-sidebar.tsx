@@ -1,4 +1,7 @@
 "use client";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -9,23 +12,17 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "ui/sidebar";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 import { AppSidebarMenus } from "./app-sidebar-menus";
 import { AppSidebarProjects } from "./app-sidebar-projects";
 import { AppSidebarThreads } from "./app-sidebar-threads";
 
-import { isShortcutEvent, Shortcuts } from "lib/keyboard-shortcuts";
-import { AppSidebarUser } from "./app-sidebar-user";
-import { PanelLeft } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Session, User } from "better-auth";
+import { isShortcutEvent, Shortcuts } from "lib/keyboard-shortcuts";
+import { PanelLeft } from "lucide-react";
+import { AppSidebarUser } from "./app-sidebar-user";
 
-export function AppSidebar({
-  session,
-}: { session?: { session: Session; user: User } }) {
+export function AppSidebar() {
   const { toggleSidebar, setOpenMobile } = useSidebar();
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -94,7 +91,7 @@ export function AppSidebar({
         </div>
       </SidebarContent>
       <SidebarFooter className="flex flex-col items-stretch space-y-2">
-        <AppSidebarUser session={session} />
+        <AppSidebarUser />
       </SidebarFooter>
     </Sidebar>
   );
