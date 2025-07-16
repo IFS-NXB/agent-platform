@@ -1,14 +1,13 @@
 {
   "editor.formatOnSave": true,
-  "[javascript]": {
-    "editor.defaultFormatter": "biomejs.biome"
+
+  "[markdown]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.markdownlint": "explicit"
+    }
   },
-  "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
+
   "typescript.tsdk": "node_modules/typescript/lib",
   "eslint.workingDirectories": [
     { "pattern": "app/*" },

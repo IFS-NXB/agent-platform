@@ -18,7 +18,6 @@ It is an api that is like the openAI one. They are used as llm providers.
 2. Press generate JSON and copy it
 3. Put in this into your env as the `OPENAI_COMPATIBLE_DATA` variable
 
-
 ### Editing
 
 Copy the contents of the env into the import section at the top, then regenerate and update your env
