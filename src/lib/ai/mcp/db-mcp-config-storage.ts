@@ -22,6 +22,7 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
     manager = _manager;
   }
 
+  // This function should only be called in response to a user request
   async function checkAndRefreshClients() {
     try {
       logger.debug("Checking MCP clients Diff");
@@ -91,12 +92,15 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
     }
   }
 
-  setInterval(() => debounce(checkAndRefreshClients, 5000), 60000).unref();
+  // Removed background refresh: only call checkAndRefreshClients() in response to a user request
+  // setInterval(() => debounce(checkAndRefreshClients, 5000), 60000).unref();
 
   return {
     init,
     async loadAll() {
       try {
+        // Optionally, you can call checkAndRefreshClients() here if this is always called in a request context
+        // await checkAndRefreshClients();
         // Return empty array during initialization to avoid auth issues
         // The actual loading will happen when checkAndRefreshClients runs
         return [];

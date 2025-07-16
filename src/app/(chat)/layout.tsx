@@ -6,12 +6,20 @@ import { SidebarProvider } from "ui/sidebar";
 import { syncUserAction } from "@/app/api/auth/actions";
 import { AppPopupProvider } from "@/components/layouts/app-popup-provider";
 import { COOKIE_KEY_SIDEBAR_STATE } from "lib/const";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 export default async function ChatLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Clerk authentication guard (latest best practice)
+  const user = await currentUser();
+  if (!user) {
+    redirect("/sign-in");
+  }
+
   const cookieStore = await cookies();
 
   // Sync user to database on each chat access
